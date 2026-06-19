@@ -39,7 +39,10 @@ const DEFAULT_PROGRESS = [
 ];
 
 // ─── Load from localStorage (persists across refresh/reopen) ──
-export let MOCK_USERS     = LS.get('aria_users',    DEFAULT_USERS);
+// DEFAULT_USERS always come from code so passwords can never get corrupted.
+// Extra users added via admin panel are merged in from a separate key.
+const _extraUsers = LS.get('aria_users_extra', []);
+export let MOCK_USERS     = [...DEFAULT_USERS, ..._extraUsers];
 export let MOCK_STUDENTS  = LS.get('aria_students', DEFAULT_STUDENTS);
 export let MOCK_PROGRESS  = LS.get('aria_progress', DEFAULT_PROGRESS);
 
@@ -48,7 +51,11 @@ let _sessionIdCounter = LS.get('aria_sid_ctr',  100);
 let _messages         = LS.get('aria_messages', {});
 
 // ─── Save helpers (called after every mutation) ───────────────
-export const saveUsers     = () => LS.set('aria_users',    MOCK_USERS);
+// Only save extra (non-default) users so defaults always come from code
+export const saveUsers = () => {
+  const defaultIds = new Set(DEFAULT_USERS.map(u => u.id));
+  LS.set('aria_users_extra', MOCK_USERS.filter(u => !defaultIds.has(u.id)));
+};
 export const saveStudents  = () => LS.set('aria_students', MOCK_STUDENTS);
 export const saveProgress  = () => LS.set('aria_progress', MOCK_PROGRESS);
 const saveSessions         = () => LS.set('aria_sessions', _sessions);

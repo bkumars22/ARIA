@@ -167,8 +167,19 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div style={{ marginTop:16, textAlign:'center', fontSize:11, color:'#d1d5db' }}>
-          🔒 Secured with JWT · Sessions auto-expire in 30 min
+        <div style={{ marginTop:14, textAlign:'center' }}>
+          <button onClick={() => {
+            ['aria_users','aria_users_extra','aria_students','aria_sessions',
+             'aria_messages','aria_sid_ctr','aria_progress','aria_lockout'].forEach(k => localStorage.removeItem(k));
+            sessionStorage.clear();
+            window.location.reload();
+          }} style={{ background:'none', border:'none', cursor:'pointer', color:'#9ca3af', fontSize:11,
+                      textDecoration:'underline' }}>
+            🔄 Reset demo data
+          </button>
+          <span style={{ color:'#d1d5db', fontSize:11, marginLeft:12 }}>
+            🔒 JWT · 30 min sessions
+          </span>
         </div>
       </div>
     </div>
