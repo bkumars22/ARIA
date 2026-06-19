@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: aria_db
+      POSTGRES_USER: aria
+      POSTGRES_PASSWORD: aria_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aria"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    ports:
+      - "8089:8089"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/aria_db
+      SPRING_DATASOURCE_USERNAME: aria
+      SPRING_DATASOURCE_PASSWORD: aria_secret
+      JWT_SECRET: ${JWT_SECRET:-aria-jwt-secret-min-32-chars-long-2026}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      AI_SERVICE_URL: http://ai-service:8001
+
+  ai-service:
+    build: ./ai-service
+    ports:
+      - "8001:8001"
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      BACKEND_URL: http://backend:8089/aria
+      WHISPER_MODEL: base   # Use 'small' for better accuracy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      REACT_APP_API_URL: http://localhost:8089/aria
+      REACT_APP_AI_URL: http://localhost:8001
+
+  playwright:
+    build: ./tests
+    depends_on:
+      - frontend
+      - backend
+    command: npx playwright test --reporter=html
+    volumes:
+      - ./playwright-report:/app/playwright-report
+
+volumes:
+  pgdata:
