@@ -15,10 +15,10 @@ const DEFAULT_USERS = [
 ];
 
 const DEFAULT_STUDENTS = [
-  { id:1, studentCode:'STU-001', fullName:'Ananya Kumar',  age:9,  grade:3, language:'hi', parentId:3, teacherId:2 },
-  { id:2, studentCode:'STU-002', fullName:'Rahul Sharma',  age:12, grade:6, language:'en', parentId:3, teacherId:2 },
-  { id:3, studentCode:'STU-003', fullName:'Emma Johnson',  age:15, grade:9, language:'en', parentId:4, teacherId:2 },
-  { id:4, studentCode:'STU-004', fullName:'Fatima Hassan', age:7,  grade:2, language:'en', parentId:4, teacherId:2 },
+  { id:1, studentCode:'STU-001', fullName:'Ananya Kumar',  age:9,  grade:3,  board:'CBSE',  language:'hi', parentId:3, teacherId:2 },
+  { id:2, studentCode:'STU-002', fullName:'Rahul Sharma',  age:12, grade:6,  board:'CBSE',  language:'en', parentId:3, teacherId:2 },
+  { id:3, studentCode:'STU-003', fullName:'Emma Johnson',  age:15, grade:10, board:'IGCSE', language:'en', parentId:4, teacherId:2 },
+  { id:4, studentCode:'STU-004', fullName:'Fatima Hassan', age:7,  grade:2,  board:'CBSE',  language:'en', parentId:4, teacherId:2 },
 ];
 
 const DEFAULT_SESSIONS = [

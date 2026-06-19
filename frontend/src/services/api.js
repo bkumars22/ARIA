@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { LESSONS, MENTOR } from './lessonData.js';
+import { BOARD_LESSONS, BOARD_INTRO } from './boardData.js';
 import {
   MOCK_TOKEN, MOCK_STUDENTS, MOCK_PROGRESS,
   MOCK_USERS, getMockSessions, addMockSession,
@@ -319,14 +320,19 @@ export async function chat(sessionId, payload) {
     const name    = payload.student_name  || 'friend';
     const subject = payload.subject       || 'Mathematics';
     const lang    = payload.language      || 'en';
+    const board   = payload.board         || 'CBSE';
     const input   = (payload.student_input || '').trim().toLowerCase();
     const M       = MENTOR[lang] || MENTOR.en;
 
     if (!_sessionState.has(sessionId)) {
-      _sessionState.set(sessionId, { turn: 0, lessonIdx: 0, subTurn: 0 });
+      _sessionState.set(sessionId, { turn: 0, lessonIdx: 0, subTurn: 0, boardIntroShown: false });
     }
     const state   = _sessionState.get(sessionId);
-    const lessons = LESSONS[subject] || LESSONS['Life Skills'];
+
+    // Board-specific lessons take priority; fall back to generic lessons
+    const lessons = (BOARD_LESSONS[board] && BOARD_LESSONS[board][subject])
+      || LESSONS[subject]
+      || LESSONS['Life Skills'];
     const lesson  = lessons[state.lessonIdx % lessons.length];
 
     // Topic name in student's language
@@ -338,7 +344,11 @@ export async function chat(sessionId, payload) {
     let score = 50 + Math.random() * 20;
 
     if (state.turn === 0) {
-      response = lesson.teach(name, lang);
+      // First message: show board intro once, then the first lesson
+      const intro   = BOARD_INTRO[board] ? BOARD_INTRO[board](name, lang) : '';
+      const lesson0 = lesson.teach(name, lang);
+      response      = intro ? intro + '\n\n---\n\n' + lesson0 : lesson0;
+      state.boardIntroShown = true;
       state.subTurn = 1;
     } else if (state.subTurn === 1) {
       if (lesson.check(input)) {

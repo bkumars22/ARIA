@@ -42,7 +42,14 @@ const LANGS = [
   { code:'it', label:'Italiano — Italian' },
   { code:'nl', label:'Nederlands — Dutch' },
 ];
-const BLANK = { fullName:'', age:'', grade:'', language:'en', studentCode:'', parentEmail:'' };
+const BOARDS = [
+  { id:'CBSE',  label:'CBSE · NCERT',      color:'#2563eb', bg:'#eff6ff' },
+  { id:'ICSE',  label:'ICSE · Selina',     color:'#16a34a', bg:'#f0fdf4' },
+  { id:'IGCSE', label:'IGCSE · Cambridge', color:'#9333ea', bg:'#faf5ff' },
+];
+const GRADES = Array.from({ length:12 }, (_, i) => i + 1);
+
+const BLANK = { fullName:'', age:'', grade:'', board:'CBSE', language:'en', studentCode:'', parentEmail:'' };
 
 export default function StudentsPage() {
   const [students, setStudents]   = useState([]);
@@ -122,9 +129,12 @@ export default function StudentsPage() {
                 </div>
               </div>
 
-              <div style={{ display:'flex', gap:8, marginBottom:14 }}>
-                <Tag label={`🌍 ${s.language?.toUpperCase()}`} />
+              <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
+                {(() => { const b = BOARDS.find(x => x.id === s.board); return b ? (
+                  <span style={{ padding:'3px 10px', background:b.bg, borderRadius:20, fontSize:11, color:b.color, fontWeight:700 }}>{b.id}</span>
+                ) : null; })()}
                 <Tag label={`📊 Grade ${s.grade}`} />
+                <Tag label={`🌍 ${s.language?.toUpperCase()}`} />
               </div>
 
               <div style={{ display:'flex', gap:8 }}>
@@ -157,7 +167,7 @@ export default function StudentsPage() {
               {form.id ? 'Edit Student' : 'Add New Student'}
             </h2>
 
-            {[['Full Name','fullName','text'],['Age','age','number'],['Grade (1-12)','grade','number'],['Student Code','studentCode','text'],['Parent Email','parentEmail','email']].map(([label,field,type]) => (
+            {[['Full Name','fullName','text'],['Age','age','number'],['Student Code','studentCode','text'],['Parent Email','parentEmail','email']].map(([label,field,type]) => (
               <div key={field} style={{ marginBottom:16 }}>
                 <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:6, color:'#374151' }}>{label}</label>
                 <input type={type} value={form[field]||''} onChange={e => setForm(f=>({...f,[field]:e.target.value}))}
@@ -165,8 +175,37 @@ export default function StudentsPage() {
               </div>
             ))}
 
+            {/* Board selector */}
+            <div style={{ marginBottom:16 }}>
+              <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:8, color:'#374151' }}>Board / Curriculum</label>
+              <div style={{ display:'flex', gap:8 }}>
+                {BOARDS.map(b => (
+                  <button key={b.id} type="button" onClick={() => setForm(f=>({...f,board:b.id}))}
+                    style={{ flex:1, padding:'10px 6px', borderRadius:10, cursor:'pointer', fontSize:12, fontWeight:700,
+                             border: form.board===b.id ? `2px solid ${b.color}` : '2px solid #e5e7eb',
+                             background: form.board===b.id ? b.bg : '#fff',
+                             color: form.board===b.id ? b.color : '#6b7280' }}>
+                    {b.id}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize:11, color:'#9ca3af', marginTop:4 }}>
+                {BOARDS.find(b=>b.id===form.board)?.label}
+              </div>
+            </div>
+
+            {/* Grade selector */}
+            <div style={{ marginBottom:16 }}>
+              <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:6, color:'#374151' }}>Grade</label>
+              <select value={form.grade||''} onChange={e => setForm(f=>({...f,grade:e.target.value}))}
+                style={{ width:'100%', padding:'10px 12px', border:'1.5px solid #e5e7eb', borderRadius:8, fontSize:14 }}>
+                <option value="">Select Grade…</option>
+                {GRADES.map(g => <option key={g} value={g}>Grade {g}</option>)}
+              </select>
+            </div>
+
             <div style={{ marginBottom:20 }}>
-              <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:6, color:'#374151' }}>Language</label>
+              <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:6, color:'#374151' }}>Teaching Language</label>
               <select value={form.language||'en'} onChange={e => setForm(f=>({...f,language:e.target.value}))}
                 style={{ width:'100%', padding:'10px 12px', border:'1.5px solid #e5e7eb', borderRadius:8, fontSize:14 }}>
                 {LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
