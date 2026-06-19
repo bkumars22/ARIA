@@ -1,7 +1,7 @@
 // TeacherDashboard.js — Class-wide analytics for teachers
 
 import { useState, useEffect } from "react";
-import api from "../services/api";
+import { getStudents, generateReport as apiReport, getProgress } from "../services/api";
 
 export default function TeacherDashboard() {
   const [students, setStudents]   = useState([]);
@@ -12,17 +12,29 @@ export default function TeacherDashboard() {
   useEffect(() => { fetchStudents(); }, []);
 
   const fetchStudents = async () => {
-    const res = await api.get("/api/students");
-    setStudents(res.data.data || []);
+    try {
+      const res = await getStudents();
+      setStudents(res.data.data || []);
+    } catch { setStudents([]); }
   };
 
   const generateReport = async (student) => {
     setSelected(student);
     setLoading(true);
-    const res = await api.post("/api/reports/generate", {
-      studentId: student.id
-    });
-    setReport(res.data.data);
+    try {
+      const progRes = await getProgress(student.id);
+      const progress = progRes.data.data || [];
+      const strong = progress.filter(p => p.score >= 70).map(p => `Module ${p.moduleId}`);
+      const weak   = progress.filter(p => p.score  < 50).map(p => `Module ${p.moduleId}`);
+      const res = await apiReport({
+        student_name: student.fullName, grade: student.grade,
+        language: student.language, sessions_count: 5,
+        avg_score: progress.reduce((s,p)=>s+p.score,0) / (progress.length||1),
+        strong_topics: strong.slice(0,3), weak_topics: weak.slice(0,3),
+        parent_language: student.language
+      });
+      setReport(res.data.report);
+    } catch { setReport("Report generation failed — please check AI service."); }
     setLoading(false);
   };
 

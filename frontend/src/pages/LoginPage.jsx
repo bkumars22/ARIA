@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import { authLogin } from '../services/api';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -14,7 +14,7 @@ export default function LoginPage() {
     if (!username || !password) { setError('Please enter username and password'); return; }
     try {
       setLoading(true); setError('');
-      const r = await api.post('/api/auth/login', { username, password });
+      const r = await authLogin(username, password);
       const { token, role, fullName, userId, language } = r.data.data;
       sessionStorage.setItem('aria_token', token);
       sessionStorage.setItem('aria_user', JSON.stringify({ userId, role, fullName, language }));
