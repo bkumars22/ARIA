@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { LESSONS, MENTOR } from './lessonData.js';
 import {
   MOCK_TOKEN, MOCK_STUDENTS, MOCK_PROGRESS,
   MOCK_USERS, getMockSessions, addMockSession,
@@ -153,10 +154,9 @@ export async function getSessions(studentId) {
 
 // ─── CHAT TEACHING ENGINE (Demo mode) ────────────────────────
 
-// Per-session lesson state: { turn, lessonIndex, waitingFor }
 const _sessionState = new Map();
 
-const LESSONS = {
+const _REMOVE_START = {
   Mathematics: [
     {
       topic: 'Addition',
@@ -318,57 +318,60 @@ export async function chat(sessionId, payload) {
     await delay(900);
     const name    = payload.student_name  || 'friend';
     const subject = payload.subject       || 'Mathematics';
+    const lang    = payload.language      || 'en';
     const input   = (payload.student_input || '').trim().toLowerCase();
+    const M       = MENTOR[lang] || MENTOR.en;
 
-    // Get or initialise session state
     if (!_sessionState.has(sessionId)) {
       _sessionState.set(sessionId, { turn: 0, lessonIdx: 0, subTurn: 0 });
     }
     const state   = _sessionState.get(sessionId);
-    const lessons = LESSONS[subject] || LESSONS.Mathematics;
+    const lessons = LESSONS[subject] || LESSONS['Life Skills'];
     const lesson  = lessons[state.lessonIdx % lessons.length];
+
+    // Topic name in student's language
+    const topicName = (lesson.topic && typeof lesson.topic === 'object')
+      ? (lesson.topic[lang] || lesson.topic.en || subject)
+      : (lesson.topic || subject);
 
     let response;
     let score = 50 + Math.random() * 20;
 
     if (state.turn === 0) {
-      // First message from student — start teaching
-      response = lesson.teach(name);
+      response = lesson.teach(name, lang);
       state.subTurn = 1;
     } else if (state.subTurn === 1) {
-      // Student answering the first question
       if (lesson.check(input)) {
-        response = lesson.correct(name);
+        response = lesson.correct(name, lang);
         score = 75 + Math.random() * 20;
       } else {
-        response = lesson.wrong(name);
+        response = lesson.wrong(name, lang);
         score = 40 + Math.random() * 25;
       }
       state.subTurn = 2;
     } else if (state.subTurn === 2) {
-      // Student answering the follow-up question
       if (lesson.nextCheck(input)) {
-        response = lesson.nextCorrect(name);
+        response = lesson.nextCorrect(name, lang) + '\n\n' + M.wellDone(name);
         score = 85 + Math.random() * 15;
       } else {
-        response = lesson.nextWrong(name);
+        response = lesson.nextWrong(name, lang);
         score = 55 + Math.random() * 20;
       }
-      // Advance to next lesson
       state.lessonIdx += 1;
       state.subTurn = 0;
 
       if (state.lessonIdx < lessons.length) {
-        const next = lessons[state.lessonIdx];
-        response += `\n\n---\n🚀 **Next Topic: ${next.topic}**\n\n` + next.teach(name);
+        const next    = lessons[state.lessonIdx];
+        const nextName = (next.topic && typeof next.topic === 'object')
+          ? (next.topic[lang] || next.topic.en) : next.topic;
+        response += `\n\n---\n` + M.next(name) + `\n\n**${nextName}**\n\n` + next.teach(name, lang);
         state.subTurn = 1;
       } else {
-        response += `\n\n🏆 **You've completed all ${subject} topics for today! Amazing work, ${name}!**\n\nWould you like to go deeper on any topic, or shall we end the session?`;
+        response += '\n\n' + M.completed(name);
       }
       score = 90;
     } else {
-      // Free chat after completion
-      response = `Great question, ${name}! 🧠 In ${subject}, the key ideas we covered were important building blocks. Keep practising every day — even 15 minutes makes a big difference! 📚\n\nIs there any topic you'd like me to explain again?`;
+      response = M.freeChat(name, subject);
       score = 80;
     }
 
@@ -384,7 +387,7 @@ export async function chat(sessionId, payload) {
           understanding_score: Math.min(100, Math.round(score)),
           should_advance: score > 85,
           difficulty: score > 75 ? 'HARD' : score > 55 ? 'MEDIUM' : 'EASY',
-          topic: lesson.topic,
+          topic: topicName,
         }
       }
     };
