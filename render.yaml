@@ -1,0 +1,70 @@
+# Render.com — One-click production deployment for ARIA
+# Dashboard: https://dashboard.render.com
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+
+  # ── Spring Boot API backend ──────────────────────────────────
+  - type: web
+    name: aria-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: singapore   # closest to India; change to: oregon, frankfurt, ohio
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: aria-db
+          property: connectionString
+        # Render gives postgresql://user:pass@host/db — we override in startup
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: aria-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: aria-db
+          property: password
+      - key: SPRING_DATASOURCE_HOST
+        fromDatabase:
+          name: aria-db
+          property: host
+      - key: SPRING_DATASOURCE_PORT
+        fromDatabase:
+          name: aria-db
+          property: port
+      - key: SPRING_DATASOURCE_DBNAME
+        fromDatabase:
+          name: aria-db
+          property: database
+      - key: JWT_SECRET
+        generateValue: true        # Render auto-creates a strong random secret
+      - key: AI_SERVICE_URL
+        value: https://aria-ai.onrender.com
+      - key: JAVA_TOOL_OPTIONS
+        value: "-Xmx450m"          # keep within Render free tier RAM limit
+
+  # ── FastAPI AI service ───────────────────────────────────────
+  - type: web
+    name: aria-ai
+    runtime: docker
+    dockerfilePath: ./ai-service/Dockerfile
+    dockerContext: ./ai-service
+    plan: free
+    region: singapore
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false                # you fill this in Render dashboard
+      - key: BACKEND_URL
+        fromService:
+          name: aria-backend
+          type: web
+          property: host
+
+# ── PostgreSQL database ──────────────────────────────────────
+databases:
+  - name: aria-db
+    databaseName: aria_db
+    plan: free                     # 1 GB storage, free forever
+    region: singapore

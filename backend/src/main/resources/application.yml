@@ -1,5 +1,5 @@
 server:
-  port: 8089
+  port: ${PORT:8089}
   servlet:
     context-path: /aria
 
@@ -7,10 +7,15 @@ spring:
   application:
     name: aria-backend
   datasource:
+    # Render provides individual parts; build JDBC URL from them
+    # Local fallback uses localhost PostgreSQL
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/aria_db}
     username: ${SPRING_DATASOURCE_USERNAME:aria}
     password: ${SPRING_DATASOURCE_PASSWORD:aria_secret}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5          # stay within Render free tier connection limit
+      connection-timeout: 20000
   jpa:
     hibernate:
       ddl-auto: validate
@@ -18,7 +23,6 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -26,17 +30,20 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET:aria-jwt-secret-min-32-chars-long-2026}
-  expiration-ms: 86400000   # 24 hours
+  expiration-ms: 86400000           # 24 hours
 
 ai:
   service:
     url: ${AI_SERVICE_URL:http://localhost:8001}
 
-springdoc:
-  api-docs:
-    path: /api-docs
-  swagger-ui:
-    path: /swagger-ui.html
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
 
 logging:
   level:
