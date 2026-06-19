@@ -129,13 +129,40 @@ export default function TutorPage() {
   const speak = (text, lang = 'en') => {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text.replace(/[🌟💪📚✅🎉🤔]/g,''));
+    const clean = text.replace(/\*\*/g,'').replace(/```[\s\S]*?```/g,'').replace(/[🌟💪📚✅🎉🤔🧠🎯🔢🔬📖💻🌱➕✖️÷]/g,'').replace(/---/g,'');
+    const u = new SpeechSynthesisUtterance(clean);
     u.lang  = VOICE_LANG[lang] || 'en-US';
     u.rate  = 0.88; u.pitch = 1.1;
     window.speechSynthesis.speak(u);
   };
 
   const scoreColor = n => n >= 75 ? '#22c55e' : n >= 50 ? '#f59e0b' : '#ef4444';
+
+  // Render markdown-lite: bold, code blocks, bullet lines, dividers
+  const formatMsg = (text) => {
+    const lines = text.split('\n');
+    return lines.map((line, i) => {
+      if (line.startsWith('```')) return null;
+      if (line === '---') return <hr key={i} style={{ border:'none', borderTop:'1px solid #e5e7eb', margin:'8px 0' }} />;
+
+      // bold **text**
+      const parts = line.split(/(\*\*[^*]+\*\*)/g);
+      const rendered = parts.map((p, j) =>
+        p.startsWith('**') && p.endsWith('**')
+          ? <strong key={j}>{p.slice(2,-2)}</strong>
+          : p
+      );
+
+      if (line.startsWith('• ') || line.startsWith('✏️') || line.startsWith('📖') ||
+          line.startsWith('✅') || line.startsWith('❓') || line.startsWith('🔍') ||
+          line.match(/^\d+\./)) {
+        return <div key={i} style={{ marginLeft: line.startsWith('  ') ? 16 : 0,
+                                      margin:'2px 0', lineHeight:1.7 }}>{rendered}</div>;
+      }
+      if (line.trim() === '') return <div key={i} style={{ height:6 }} />;
+      return <div key={i} style={{ lineHeight:1.7 }}>{rendered}</div>;
+    }).filter(Boolean);
+  };
 
   if (!student) return null;
 
@@ -211,13 +238,14 @@ export default function TutorPage() {
                   <div style={{ width:36, height:36, borderRadius:10, background:'linear-gradient(135deg,#667eea,#764ba2)',
                                 display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:18, flexShrink:0 }}>🧠</div>
                 )}
-                <div style={{ padding:'12px 16px', borderRadius:16, fontSize:14, lineHeight:1.65,
+                <div style={{ padding:'14px 18px', borderRadius:16, fontSize:14, lineHeight:1.65,
                               background: m.role==='student' ? '#667eea' : '#fff',
                               color:      m.role==='student' ? '#fff' : '#1a1a2e',
-                              boxShadow:'0 1px 4px rgba(0,0,0,0.08)',
+                              boxShadow:'0 1px 6px rgba(0,0,0,0.08)',
                               borderTopRightRadius: m.role==='student' ? 4 : 16,
-                              borderTopLeftRadius:  m.role==='aria'    ? 4 : 16 }}>
-                  {m.content}
+                              borderTopLeftRadius:  m.role==='aria'    ? 4 : 16,
+                              maxWidth: '100%' }}>
+                  {m.role === 'aria' ? formatMsg(m.content) : m.content}
                 </div>
               </div>
             )}
