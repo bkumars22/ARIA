@@ -6,10 +6,19 @@ import TutorPage    from './pages/TutorPage';
 import SessionsPage from './pages/SessionsPage';
 import ReportsPage  from './pages/ReportsPage';
 import UsersPage    from './pages/UsersPage';
+import ProgressPage from './pages/ProgressPage';
 
 function PrivateRoute({ children, roles }) {
   const token = sessionStorage.getItem('aria_token');
   const user  = JSON.parse(sessionStorage.getItem('aria_user') || '{}');
+
+  // Check session expiry
+  const expiry = parseInt(sessionStorage.getItem('aria_session_expiry') || '0', 10);
+  if (expiry && Date.now() > expiry) {
+    sessionStorage.clear();
+    return <Navigate to="/login" replace />;
+  }
+
   if (!token) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
   return children;
@@ -17,16 +26,24 @@ function PrivateRoute({ children, roles }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
 
+        {/* All authenticated users */}
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-        <Route path="/students"  element={<PrivateRoute><StudentsPage /></PrivateRoute>} />
-        <Route path="/tutor"     element={<PrivateRoute><TutorPage /></PrivateRoute>} />
-        <Route path="/sessions"  element={<PrivateRoute><SessionsPage /></PrivateRoute>} />
         <Route path="/reports"   element={<PrivateRoute><ReportsPage /></PrivateRoute>} />
+
+        {/* Teacher + Admin only */}
+        <Route path="/students"  element={<PrivateRoute roles={['ADMIN','TEACHER']}><StudentsPage /></PrivateRoute>} />
+        <Route path="/tutor"     element={<PrivateRoute roles={['ADMIN','TEACHER']}><TutorPage /></PrivateRoute>} />
+        <Route path="/sessions"  element={<PrivateRoute roles={['ADMIN','TEACHER']}><SessionsPage /></PrivateRoute>} />
+
+        {/* Admin only */}
         <Route path="/users"     element={<PrivateRoute roles={['ADMIN']}><UsersPage /></PrivateRoute>} />
+
+        {/* Parent only */}
+        <Route path="/progress"  element={<PrivateRoute roles={['PARENT']}><ProgressPage /></PrivateRoute>} />
 
         <Route path="/"  element={<Navigate to="/dashboard" replace />} />
         <Route path="*"  element={<Navigate to="/dashboard" replace />} />

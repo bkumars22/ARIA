@@ -34,19 +34,33 @@ export async function authLogin(username, password) {
   if (DEMO) {
     await delay(600);
     const u = MOCK_USERS.find(u => u.username === username && u.password === password);
-    if (u) return { data: { success: true, data: { ...u, token: MOCK_TOKEN } } };
+    if (u) return { data: { success: true, data: { ...u, userId: u.id, token: MOCK_TOKEN } } };
     throw { response: { status: 401 } };
   }
   return api.post('/api/auth/login', { username, password });
 }
 
+// ─── CURRENT USER (from sessionStorage) ──────────────────────
+const currentUser = () => JSON.parse(sessionStorage.getItem('aria_user') || '{}');
+
 // ─── STUDENTS ─────────────────────────────────────────────────
 export async function getStudents() {
-  if (DEMO) return mock(mockStudents());
+  if (DEMO) {
+    const u = currentUser();
+    const all = mockStudents();
+    // Parents only see their own children — no cross-parent data leakage
+    if (u.role === 'PARENT') return mock(all.filter(s => s.parentId === u.userId));
+    return mock(all);
+  }
   return api.get('/api/students');
 }
 export async function getStudentsByTeacher(teacherId) {
-  if (DEMO) return mock(mockStudents());
+  if (DEMO) {
+    const u = currentUser();
+    const all = mockStudents();
+    if (u.role === 'PARENT') return mock(all.filter(s => s.parentId === u.userId));
+    return mock(all);
+  }
   return api.get(`/api/students/teacher/${teacherId}`);
 }
 export async function createStudent(data) {
@@ -124,7 +138,16 @@ export async function getMessages(sessionId) {
   return api.get(`/api/sessions/${sessionId}/messages`);
 }
 export async function getSessions(studentId) {
-  if (DEMO) return mock(getMockSessions().filter(s => !studentId || s.studentId === studentId));
+  if (DEMO) {
+    const u   = currentUser();
+    const all = getMockSessions();
+    // Parents only see sessions for their own children
+    if (u.role === 'PARENT') {
+      const myKids = mockStudents().filter(s => s.parentId === u.userId).map(s => s.id);
+      return mock(all.filter(s => myKids.includes(s.studentId)));
+    }
+    return mock(all.filter(s => !studentId || s.studentId === studentId));
+  }
   return api.get('/api/sessions', { params: { studentId } });
 }
 
@@ -376,9 +399,25 @@ export async function getProgress(studentId) {
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────
-export async function getDashboard(teacherId) {
-  if (DEMO) return mock(getMockDashboard());
-  return api.get(`/api/dashboard/teacher/${teacherId}`);
+export async function getDashboard() {
+  if (DEMO) {
+    const u = currentUser();
+    if (u.role === 'PARENT') {
+      const myKids     = MOCK_STUDENTS.filter(s => s.parentId === u.userId);
+      const myKidIds   = myKids.map(s => s.id);
+      const mySessions = getMockSessions().filter(s => myKidIds.includes(s.studentId));
+      const myProgress = MOCK_PROGRESS.filter(p => myKidIds.includes(p.studentId));
+      return mock({
+        totalStudents:         myKids.length,
+        totalSessions:         mySessions.length,
+        avgUnderstandingScore: Math.round(mySessions.reduce((a,s) => a+(s.understandingScore||0),0) / (mySessions.length||1)),
+        totalModulesMastered:  myProgress.filter(p => p.masteryLevel==='MASTERED').length,
+        activeStudentsToday:   mySessions.filter(s => s.status==='ACTIVE').length,
+      });
+    }
+    return mock(getMockDashboard());
+  }
+  return api.get('/api/dashboard');
 }
 
 // ─── REPORTS ──────────────────────────────────────────────────
