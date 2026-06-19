@@ -26,6 +26,9 @@ public class Student {
     @Column(nullable = false)
     private String language = "en";
 
+    @Column(nullable = false)
+    private String board = "CBSE";   // CBSE | ICSE | IGCSE
+
     @Column(name = "parent_id")
     private Long parentId;
 
@@ -47,6 +50,8 @@ public class Student {
     public void setGrade(Integer v)          { this.grade = v; }
     public String getLanguage()              { return language; }
     public void setLanguage(String v)        { this.language = v; }
+    public String getBoard()                 { return board; }
+    public void setBoard(String v)           { this.board = v; }
     public Long getParentId()                { return parentId; }
     public void setParentId(Long v)          { this.parentId = v; }
     public Long getTeacherId()               { return teacherId; }

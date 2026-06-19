@@ -232,7 +232,8 @@ def log_progress(state: TeachingState) -> TeachingState:
 
 
 # ─── Build the LangGraph ──────────────────────────────────────
-BACKEND_URL = "http://localhost:8089/aria"
+import os
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8089/aria")
 
 workflow = StateGraph(TeachingState)
 workflow.add_node("assess_level",        assess_level)

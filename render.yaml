@@ -57,10 +57,7 @@ services:
       - key: ANTHROPIC_API_KEY
         sync: false                # you fill this in Render dashboard
       - key: BACKEND_URL
-        fromService:
-          name: aria-backend
-          type: web
-          property: host
+        value: https://aria-backend.onrender.com/aria
 
 # ── PostgreSQL database ──────────────────────────────────────
 databases:
