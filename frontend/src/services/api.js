@@ -1,9 +1,10 @@
 import axios from 'axios';
 import {
-  MOCK_TOKEN, MOCK_USER, MOCK_STUDENTS, MOCK_PROGRESS,
-  MOCK_DASHBOARD, MOCK_USERS, getMockSessions, addMockSession,
+  MOCK_TOKEN, MOCK_STUDENTS, MOCK_PROGRESS,
+  MOCK_USERS, getMockSessions, addMockSession,
   getMockMessages, addMockMessage, nextMockSessionId, MOCK_REPORT,
-  mockStudents, mockUsers,
+  mockStudents, mockUsers, getMockDashboard,
+  saveStudents, saveUsers,
 } from './mockData';
 
 const DEMO    = process.env.REACT_APP_DEMO_MODE === 'true';
@@ -50,8 +51,9 @@ export async function getStudentsByTeacher(teacherId) {
 }
 export async function createStudent(data) {
   if (DEMO) {
-    const s = { ...data, id: nextId(), studentCode: `STU-${String(nextId()).padStart(3,'0')}` };
-    MOCK_STUDENTS.push(s);
+    const id = nextId();
+    const s  = { ...data, id, studentCode: `STU-${String(id).padStart(3,'0')}` };
+    MOCK_STUDENTS.push(s); saveStudents();
     return mock(s, 300);
   }
   return api.post('/api/students', data);
@@ -59,7 +61,7 @@ export async function createStudent(data) {
 export async function updateStudent(id, data) {
   if (DEMO) {
     const i = MOCK_STUDENTS.findIndex(s => s.id === id);
-    if (i >= 0) MOCK_STUDENTS[i] = { ...MOCK_STUDENTS[i], ...data };
+    if (i >= 0) { MOCK_STUDENTS[i] = { ...MOCK_STUDENTS[i], ...data }; saveStudents(); }
     return mock(MOCK_STUDENTS[i], 300);
   }
   return api.put(`/api/students/${id}`, data);
@@ -67,7 +69,7 @@ export async function updateStudent(id, data) {
 export async function deleteStudent(id) {
   if (DEMO) {
     const i = MOCK_STUDENTS.findIndex(s => s.id === id);
-    if (i >= 0) MOCK_STUDENTS.splice(i, 1);
+    if (i >= 0) { MOCK_STUDENTS.splice(i, 1); saveStudents(); }
     return mock({}, 200);
   }
   return api.delete(`/api/students/${id}`);
@@ -81,7 +83,7 @@ export async function getUsers() {
 export async function createUser(data) {
   if (DEMO) {
     const u = { ...data, id: nextId() };
-    MOCK_USERS.push(u);
+    MOCK_USERS.push(u); saveUsers();
     return mock(u, 300);
   }
   return api.post('/api/users', data);
@@ -89,7 +91,7 @@ export async function createUser(data) {
 export async function updateUser(id, data) {
   if (DEMO) {
     const i = MOCK_USERS.findIndex(u => u.id === id);
-    if (i >= 0) MOCK_USERS[i] = { ...MOCK_USERS[i], ...data };
+    if (i >= 0) { MOCK_USERS[i] = { ...MOCK_USERS[i], ...data }; saveUsers(); }
     return mock(MOCK_USERS[i], 300);
   }
   return api.put(`/api/users/${id}`, data);
@@ -97,7 +99,7 @@ export async function updateUser(id, data) {
 export async function deleteUser(id) {
   if (DEMO) {
     const i = MOCK_USERS.findIndex(u => u.id === id);
-    if (i >= 0) MOCK_USERS.splice(i, 1);
+    if (i >= 0) { MOCK_USERS.splice(i, 1); saveUsers(); }
     return mock({}, 200);
   }
   return api.delete(`/api/users/${id}`);
@@ -375,7 +377,7 @@ export async function getProgress(studentId) {
 
 // ─── DASHBOARD ────────────────────────────────────────────────
 export async function getDashboard(teacherId) {
-  if (DEMO) return mock(MOCK_DASHBOARD);
+  if (DEMO) return mock(getMockDashboard());
   return api.get(`/api/dashboard/teacher/${teacherId}`);
 }
 

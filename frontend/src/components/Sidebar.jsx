@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const NAV = {
@@ -20,50 +21,121 @@ const NAV = {
   ],
 };
 
+const CSS = `
+  .aria-hamburger {
+    display: block;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 300;
+    background: #1a1a2e;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .aria-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 150;
+  }
+  .aria-sidebar-wrap {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+  .aria-sidebar-wrap.open {
+    transform: translateX(0);
+  }
+  .aria-close-btn {
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0;
+    margin-left: auto;
+  }
+  @media (min-width: 768px) {
+    .aria-hamburger { display: none !important; }
+    .aria-overlay   { display: none !important; }
+    .aria-sidebar-wrap {
+      position: relative !important;
+      transform: translateX(0) !important;
+      height: auto !important;
+    }
+    .aria-close-btn { display: none !important; }
+  }
+`;
+
 export default function Sidebar() {
-  const navigate  = useNavigate();
-  const location  = useLocation();
-  const user      = JSON.parse(sessionStorage.getItem('aria_user') || '{}');
-  const role      = user.role || 'TEACHER';
-  const links     = NAV[role] || NAV.TEACHER;
+  const navigate = useNavigate();
+  const location = useLocation();
+  const user     = JSON.parse(sessionStorage.getItem('aria_user') || '{}');
+  const role     = user.role || 'TEACHER';
+  const links    = NAV[role] || NAV.TEACHER;
+  const [open, setOpen] = useState(false);
 
   const logout = () => { sessionStorage.clear(); navigate('/login'); };
+  const go     = (path) => { navigate(path); setOpen(false); };
 
   return (
-    <div style={s.sidebar}>
-      <div style={s.brand}>
-        <span style={s.logo}>🧠</span>
-        <div>
-          <div style={s.brandName}>ARIA</div>
-          <div style={s.brandSub}>AI Tutor Platform</div>
-        </div>
-      </div>
+    <>
+      <style>{CSS}</style>
 
-      <div style={s.userBox}>
-        <div style={s.avatar}>{(user.fullName||'U').charAt(0)}</div>
-        <div>
-          <div style={s.userName}>{user.fullName || 'User'}</div>
-          <div style={s.userRole}>{role}</div>
-        </div>
-      </div>
+      <button className="aria-hamburger" onClick={() => setOpen(true)} aria-label="Open menu">
+        ☰ ARIA
+      </button>
 
-      <nav style={s.nav}>
-        {links.map(l => (
-          <div key={l.path}
-            onClick={() => navigate(l.path)}
-            style={{ ...s.link, ...(location.pathname === l.path ? s.active : {}) }}>
-            <span style={s.icon}>{l.icon}</span>
-            <span>{l.label}</span>
+      {open && <div className="aria-overlay" onClick={() => setOpen(false)} />}
+
+      <div className={`aria-sidebar-wrap${open ? ' open' : ''}`}>
+        <div style={s.sidebar}>
+          <div style={s.brand}>
+            <span style={s.logo}>🧠</span>
+            <div style={{ flex:1 }}>
+              <div style={s.brandName}>ARIA</div>
+              <div style={s.brandSub}>AI Tutor Platform</div>
+            </div>
+            <button className="aria-close-btn" onClick={() => setOpen(false)}>✕</button>
           </div>
-        ))}
-      </nav>
 
-      <div style={s.bottom}>
-        <div onClick={logout} style={s.link}>
-          <span style={s.icon}>🚪</span><span>Logout</span>
+          <div style={s.userBox}>
+            <div style={s.avatar}>{(user.fullName || 'U').charAt(0)}</div>
+            <div>
+              <div style={s.userName}>{user.fullName || 'User'}</div>
+              <div style={s.userRole}>{role}</div>
+            </div>
+          </div>
+
+          <nav style={s.nav}>
+            {links.map(l => (
+              <div key={l.path}
+                onClick={() => go(l.path)}
+                style={{ ...s.link, ...(location.pathname === l.path ? s.active : {}) }}>
+                <span style={s.icon}>{l.icon}</span>
+                <span>{l.label}</span>
+              </div>
+            ))}
+          </nav>
+
+          <div style={s.bottom}>
+            <div onClick={logout} style={s.link}>
+              <span style={s.icon}>🚪</span><span>Logout</span>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
