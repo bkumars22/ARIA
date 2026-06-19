@@ -1,128 +1,224 @@
-# ARIA — Adaptive Real-time Intelligence for Anyone
+# 🧠 ARIA — Adaptive Real-time Intelligence for Anyone
 
-> AI tutor that teaches any subject, in any language, to any child on Earth — for free.
+> **Free AI-powered tutor for every child on Earth.**  
+> Socratic teaching · Multi-language · Voice-enabled · No cost ever.
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue)](https://github.com/bkumars22/ARIA)
-[![Tests](https://img.shields.io/badge/Tests-Playwright-green)](https://github.com/bkumars22/ARIA)
-[![AI](https://img.shields.io/badge/AI-Claude%20%2B%20LangGraph-purple)](https://anthropic.com)
-[![Impact](https://img.shields.io/badge/Impact-1.6B%20Children-orange)](https://github.com/bkumars22/ARIA)
-
----
-
-## The Problem
-
-1.6 billion children on Earth. Only a fraction have access to a quality teacher.
-- Rural India: 1 teacher for 60+ students across multiple grades
-- Africa: 300 million kids with no qualified teacher
-- Private tutoring: $50–$200/hour — only for the wealthy
-
-**ARIA is the patient, personalised, always-available teacher every child deserves.**
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-667eea?style=for-the-badge&logo=github)](https://bkumars22.github.io/ARIA/)
+[![Deploy](https://github.com/bkumars22/ARIA/actions/workflows/deploy.yml/badge.svg)](https://github.com/bkumars22/ARIA/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+[![Made with React](https://img.shields.io/badge/React-18-61dafb?style=for-the-badge&logo=react)](https://react.dev)
+[![Powered by Claude](https://img.shields.io/badge/AI-Claude%20Sonnet-orange?style=for-the-badge)](https://anthropic.com)
 
 ---
 
-## What ARIA Does
+## 🌍 Live URL
 
-- 🧠 **Adaptive learning** — detects struggle, simplifies, advances when ready
-- 🌍 **Multi-language** — English, Hindi, Tamil, Kannada, Swahili, Spanish, Arabic
-- 🎤 **Voice input** — children who can't type yet can speak
-- 📊 **Parent dashboard** — real-time progress every parent can understand
-- 🏫 **Teacher dashboard** — class-wide analytics for educators
-- 📱 **Works on ₹3,000 Android phones with 2G internet**
-- ✅ **Free, forever** — open source, NGO-ready
+**▶ [https://bkumars22.github.io/ARIA/](https://bkumars22.github.io/ARIA/)**
+
+Anyone in the world can open this link — no installation, no account needed.  
+Log in with a demo account and start learning immediately.
 
 ---
 
-## Architecture
+## 📸 Screenshots
+
+| Login | Dashboard | AI Tutor Chat |
+|-------|-----------|---------------|
+| ![Login](docs/screenshots/login.png) | ![Dashboard](docs/screenshots/dashboard.png) | ![Tutor](docs/screenshots/tutor.png) |
+
+| Students Management | Reports | User Management |
+|--------------------|---------|-----------------|
+| ![Students](docs/screenshots/students.png) | ![Reports](docs/screenshots/reports.png) | ![Users](docs/screenshots/users.png) |
+
+---
+
+## ✨ What Makes ARIA Special
+
+| Feature | Description |
+|---------|-------------|
+| 🤖 **Socratic AI** | Never gives answers directly — guides children to discover them |
+| 🎤 **Voice Input** | Children speak their answers using the microphone |
+| 🔊 **Voice Output** | ARIA speaks back in the child's language |
+| 🌍 **Multi-language** | English, Hindi, Tamil, Kannada, Spanish, Arabic, Swahili |
+| 📊 **Real Progress** | Mastery tracking across 25 curriculum modules |
+| 📝 **Parent Reports** | AI-written weekly reports sent to parents |
+| 🔐 **Secure** | JWT auth, rate limiting, session timeout, role-based access |
+| 📱 **Responsive** | Works on mobile, tablet, and desktop |
+| 🆓 **Free Forever** | Open source, MIT license, no cost |
+
+---
+
+## 👥 Who Can Use ARIA
+
+| Role | What They Can Do |
+|------|-----------------|
+| 🎓 **Student** | Chat with AI tutor, speak answers via mic, learn any subject |
+| 👨‍🏫 **Teacher** | Manage students, view progress, generate parent reports |
+| 👪 **Parent** | View child's progress and receive AI-written weekly reports |
+| 🛡️ **Admin** | Manage all users, students, roles, and system settings |
+
+---
+
+## 📚 Subjects Covered
+
+- 🔢 **Mathematics** — Arithmetic, Algebra, Geometry, Fractions
+- 🔬 **Science** — Physics, Chemistry, Biology, Environment
+- 📖 **English** — Grammar, Reading, Writing, Comprehension
+- 💻 **Coding** — Scratch logic, Python basics, computational thinking
+- 🌱 **Life Skills** — Critical thinking, empathy, teamwork
+
+---
+
+## 🚀 Quick Start (Demo — No Setup Needed)
+
+1. Open **[https://bkumars22.github.io/ARIA/](https://bkumars22.github.io/ARIA/)**
+2. Log in with any demo account:
+
+| Username | Password | Role |
+|----------|----------|------|
+| `teacher` | `Teacher@2026` | Teacher — manage students + reports |
+| `admin` | `Admin@2026` | Admin — full user management |
+| `parent1` | `Parent@2026` | Parent — view child progress |
+| `parent2` | `Parent@2026` | Parent — view child progress |
+
+3. Navigate to **Students → click Tutor → pick a subject → start chatting!**
+
+---
+
+## 🏗️ Architecture
 
 ```
-React 18 (Teacher/Parent Dashboard)    React Native (Child Tutor App)
-                    ↕ JWT Auth
-              Spring Boot 4 API
-              90+ REST Endpoints
-                    ↕
-           Python FastAPI AI Service
-    LangGraph 6-node Adaptive Agent
-    Claude AI Socratic Teaching Engine
-    Whisper Voice Recognition
-                    ↕
-    PostgreSQL + Flyway Migrations
-    Student Progress · Curriculum · Sessions
+┌─────────────────────────────────────────────────┐
+│                  ARIA Platform                   │
+├──────────────┬───────────────┬───────────────────┤
+│   Frontend   │   Backend     │   AI Service      │
+│  React 18    │  Spring Boot  │  FastAPI + Claude │
+│  Vite 5      │  Java 17      │  Python 3.11      │
+│  Port 3001   │  Port 8089    │  Port 8001        │
+├──────────────┴───────────────┴───────────────────┤
+│              PostgreSQL 16 Database              │
+│    (Users · Students · Sessions · Progress)      │
+└─────────────────────────────────────────────────┘
 ```
 
 ---
 
-## LangGraph 6-Node Teaching Agent
+## 🔐 Security Features
 
+- ✅ **JWT Authentication** — Signed tokens, 24-hour expiry
+- ✅ **Login Rate Limiting** — Account locked for 5 min after 5 failed attempts
+- ✅ **Session Timeout** — Auto-logout after 30 minutes of inactivity
+- ✅ **Role-Based Access Control** — ADMIN / TEACHER / PARENT see different data
+- ✅ **Input Sanitization** — XSS protection on all inputs
+- ✅ **BCrypt Passwords** — Salted hash, never stored as plain text
+- ✅ **HTTPS Only** — All production traffic TLS-encrypted
+- ✅ **CORS Configured** — Only allowed origins accepted by backend
+
+---
+
+## 💻 Local Development Setup
+
+### Prerequisites
+- Node.js 18+ · Java 17+ · Docker Desktop
+
+### Frontend Only (Demo Mode)
+```bash
+git clone https://github.com/bkumars22/ARIA.git
+cd ARIA/frontend
+npm install
+npm run dev
+# Open: http://localhost:3001
 ```
-Student Input
-     ↓
-[Node 1] assess_level       — Detect grade/knowledge level
-     ↓
-[Node 2] select_curriculum  — Choose right lesson module
-     ↓
-[Node 3] teach_socratically — Ask guiding questions, not answers
-     ↓
-[Node 4] evaluate_response  — Did they understand?
-     ↓
-[Node 5] adapt_or_advance   — Simplify OR move to next concept
-     ↓
-[Node 6] log_progress       — Save to PostgreSQL, update dashboard
-```
 
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Backend | Java 17, Spring Boot 4, JWT, RBAC, JPA, Flyway |
-| Frontend | React 18, React Router, Web Speech API |
-| Mobile | React Native + Expo (Android + iOS) |
-| AI | Python FastAPI, Claude AI, LangGraph, Whisper |
-| Testing | Playwright TypeScript, pytest, 100% coverage |
-| DevOps | Docker Compose, GitHub Actions, Railway, GitHub Pages |
-| Database | PostgreSQL 16, H2 (testing), 5 Flyway migrations |
-
----
-
-## Curriculum Scope
-
-- **Mathematics** — Grade 1–10 (arithmetic → algebra → geometry)
-- **Science** — Physics, Chemistry, Biology
-- **Languages** — English reading, writing, comprehension
-- **Coding** — Intro programming concepts for kids
-- **Life Skills** — Financial literacy, health, critical thinking
-
----
-
-## Quick Start
-
+### Full Stack with Docker (Real AI responses)
 ```bash
 git clone https://github.com/bkumars22/ARIA.git
 cd ARIA
+cp .env.example .env
+# Add your ANTHROPIC_API_KEY to .env
 docker-compose up
-# Frontend: http://localhost:3000
-# API:      http://localhost:8089/aria
-# Swagger:  http://localhost:8089/aria/swagger-ui.html
-# AI:       http://localhost:8001/docs
-# Login:    teacher@aria.ai / Teacher@2026
+# Open: http://localhost:3001
 ```
 
 ---
 
-## Run Tests
+## 📦 Project Structure
 
+```
+ARIA/
+├── frontend/               # React 18 + Vite 5
+│   ├── src/pages/          # All pages with role guards
+│   ├── src/components/     # Sidebar with role-aware nav
+│   └── src/services/       # api.js + mockData.js
+├── backend/                # Spring Boot 3 / Java 17
+│   └── src/main/java/com/aria/
+│       ├── auth/           # JWT login + BCrypt
+│       ├── student/        # Student CRUD
+│       ├── agent/          # Session management
+│       └── progress/       # Mastery tracking
+├── ai-service/             # FastAPI + LangGraph + Claude Sonnet
+├── tests/                  # Playwright E2E (60 tests)
+├── docker-compose.yml
+└── .github/workflows/      # Auto-deploy to GitHub Pages on push
+```
+
+---
+
+## 🧠 AI Teaching Engine
+
+Uses **LangGraph** with **Claude Sonnet** in a 6-node Socratic loop:
+
+```
+assess_level → select_curriculum → teach_socratically
+     ↑                                      ↓
+log_progress ← adapt_or_advance ← evaluate_response
+```
+
+**Principle:** ARIA *never* gives the answer. It asks guiding questions until the child discovers the answer themselves.
+
+---
+
+## 🌐 Production Deployment
+
+### GitHub Pages (Frontend Demo — free, instant)
+Automatically deployed on every push to `main` via GitHub Actions.  
+URL: `https://bkumars22.github.io/ARIA/`
+
+### Full Production (all features, unlimited users)
 ```bash
-cd tests
-npx playwright test
-npx playwright show-report
+# On any Ubuntu 22.04 server or cloud VM
+git clone https://github.com/bkumars22/ARIA.git
+cd ARIA && cp .env.example .env
+# Fill ANTHROPIC_API_KEY, DB credentials in .env
+docker-compose up -d
 ```
+Then point your domain's DNS to the server — ARIA is live for unlimited students.
 
 ---
 
-## Impact
+## 🤝 Contributing
 
-> "Every child deserves a patient, brilliant teacher available 24/7 in their language.
-> ARIA makes that possible — for free." — Kumara Swamy B, Builder
+This is a **social service project** — help welcome!
 
-Built by **Kumara Swamy B** — Staff SDET & AI Architect · [LinkedIn](https://linkedin.com/in/kumaraswamy7731b020) · [GitHub](https://github.com/bkumars22)
+1. Fork → feature branch → PR
+2. Priority: new language translations, new subjects, accessibility, mobile UX
+
+---
+
+## 👨‍💻 Built By
+
+**Kumar Swamy** ([@bkumars22](https://github.com/bkumars22))  
+*"Quality education for every child on Earth, regardless of geography or background."*
+
+---
+
+## 📄 License
+
+MIT — free to use, modify, distribute.
+
+---
+
+<div align="center">
+  <strong>🧠 ARIA — Because every child deserves a great teacher.</strong><br/><br/>
+  <a href="https://bkumars22.github.io/ARIA/"><strong>▶ Try it now — free, forever</strong></a>
+</div>

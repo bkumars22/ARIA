@@ -8,12 +8,34 @@ const SUBJECTS = [
   { id:'Life Skills', emoji:'🌱' },
 ];
 
+const VOICE_LANG = {
+  hi:'hi-IN', ta:'ta-IN', te:'te-IN', kn:'kn-IN', ml:'ml-IN',
+  mr:'mr-IN', gu:'gu-IN', pa:'pa-IN', bn:'bn-IN', ur:'ur-PK',
+  es:'es-ES', fr:'fr-FR', ar:'ar-SA', pt:'pt-BR', ru:'ru-RU',
+  zh:'zh-CN', de:'de-DE', ja:'ja-JP', ko:'ko-KR', id:'id-ID',
+  ms:'ms-MY', tr:'tr-TR', sw:'sw-KE', vi:'vi-VN', th:'th-TH',
+  it:'it-IT', nl:'nl-NL',
+};
+
 const GREET = {
   en: (n,s) => `Hi ${n}! 👋 I'm ARIA, your learning buddy! Let's explore ${s} together. What do you already know about it?`,
   hi: (n,s) => `नमस्ते ${n}! 👋 मैं ARIA हूँ! आज हम ${s} सीखेंगे। आप इसके बारे में क्या जानते हैं?`,
   ta: (n,s) => `வணக்கம் ${n}! 👋 நான் ARIA! ${s} பற்றி என்ன தெரியும்?`,
   kn: (n,s) => `ನಮಸ್ಕಾರ ${n}! 👋 ನಾನು ARIA! ${s} ಬಗ್ಗೆ ಏನು ಗೊತ್ತು?`,
+  te: (n,s) => `నమస్కారం ${n}! 👋 నేను ARIA! ${s} గురించి మీకు ఏమి తెలుసు?`,
+  ml: (n,s) => `നമസ്കാരം ${n}! 👋 ഞാൻ ARIA! ${s} നെ കുറിച്ച് നിങ്ങൾക്ക് എന്ത് അറിയാം?`,
+  mr: (n,s) => `नमस्कार ${n}! 👋 मी ARIA आहे! ${s} बद्दल तुम्हाला काय माहित आहे?`,
+  gu: (n,s) => `નમસ્તે ${n}! 👋 હું ARIA છું! ${s} વિશે તમને શું ખબર છે?`,
+  bn: (n,s) => `নমস্কার ${n}! 👋 আমি ARIA! ${s} সম্পর্কে তুমি কি জানো?`,
   es: (n,s) => `¡Hola ${n}! 👋 Soy ARIA. ¿Qué sabes ya sobre ${s}?`,
+  fr: (n,s) => `Bonjour ${n}! 👋 Je suis ARIA! Que sais-tu sur ${s}?`,
+  ar: (n,s) => `مرحباً ${n}! 👋 أنا ARIA! ماذا تعرف عن ${s}؟`,
+  pt: (n,s) => `Olá ${n}! 👋 Eu sou ARIA! O que você já sabe sobre ${s}?`,
+  de: (n,s) => `Hallo ${n}! 👋 Ich bin ARIA! Was weißt du schon über ${s}?`,
+  zh: (n,s) => `你好 ${n}! 👋 我是ARIA！你对${s}了解多少？`,
+  ja: (n,s) => `こんにちは ${n}! 👋 ARIAです！${s}について何を知っていますか？`,
+  ko: (n,s) => `안녕하세요 ${n}! 👋 저는 ARIA예요! ${s}에 대해 무엇을 알고 있나요?`,
+  sw: (n,s) => `Habari ${n}! 👋 Mimi ni ARIA! Unajua nini kuhusu ${s}?`,
 };
 
 export default function TutorPage() {
@@ -93,7 +115,7 @@ export default function TutorPage() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { alert('Voice input not supported. Try Chrome.'); return; }
     const rec = new SR();
-    rec.lang           = { hi:'hi-IN', ta:'ta-IN', es:'es-ES', ar:'ar-SA' }[student?.language] || 'en-US';
+    rec.lang           = VOICE_LANG[student?.language] || 'en-US';
     rec.continuous     = false;
     rec.interimResults = false;
     rec.onresult = e => { setInput(e.results[0][0].transcript); setListening(false); };
@@ -108,7 +130,7 @@ export default function TutorPage() {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text.replace(/[🌟💪📚✅🎉🤔]/g,''));
-    u.lang  = { hi:'hi-IN', ta:'ta-IN', es:'es-ES', ar:'ar-SA' }[lang] || 'en-US';
+    u.lang  = VOICE_LANG[lang] || 'en-US';
     u.rate  = 0.88; u.pitch = 1.1;
     window.speechSynthesis.speak(u);
   };

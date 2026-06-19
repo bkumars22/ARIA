@@ -154,7 +154,12 @@ export default function UsersPage() {
               <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:5 }}>Language</label>
               <select value={form.language||'en'} onChange={e => setForm(f=>({...f,language:e.target.value}))}
                 style={{ width:'100%', padding:'10px 12px', border:'1.5px solid #e5e7eb', borderRadius:8, fontSize:14 }}>
-                {['en','hi','ta','kn','es','ar','sw'].map(l => <option key={l} value={l}>{l.toUpperCase()}</option>)}
+                {[{c:'en',l:'English'},{c:'hi',l:'Hindi'},{c:'ta',l:'Tamil'},{c:'te',l:'Telugu'},{c:'kn',l:'Kannada'},
+                  {c:'ml',l:'Malayalam'},{c:'mr',l:'Marathi'},{c:'gu',l:'Gujarati'},{c:'bn',l:'Bengali'},
+                  {c:'pa',l:'Punjabi'},{c:'es',l:'Spanish'},{c:'fr',l:'French'},{c:'ar',l:'Arabic'},
+                  {c:'pt',l:'Portuguese'},{c:'de',l:'German'},{c:'zh',l:'Chinese'},{c:'ja',l:'Japanese'},
+                  {c:'ko',l:'Korean'},{c:'sw',l:'Swahili'},{c:'ru',l:'Russian'}
+                ].map(({c,l}) => <option key={c} value={c}>{l}</option>)}
               </select>
             </div>
 

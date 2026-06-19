@@ -3,7 +3,9 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  const isProd = mode === 'production';
   return {
+    base: isProd ? '/ARIA/' : '/',
     plugins: [react()],
     server: {
       port: 3001,

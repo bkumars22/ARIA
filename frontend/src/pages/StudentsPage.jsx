@@ -3,7 +3,45 @@ import Sidebar from '../components/Sidebar';
 import { getStudents, createStudent, updateStudent, deleteStudent } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
-const LANGS = ['en','hi','ta','kn','es','ar','sw'];
+// Indian languages (22 official + major) + top world languages
+const LANGS = [
+  // Indian
+  { code:'hi', label:'हिंदी — Hindi' },
+  { code:'ta', label:'தமிழ் — Tamil' },
+  { code:'te', label:'తెలుగు — Telugu' },
+  { code:'kn', label:'ಕನ್ನಡ — Kannada' },
+  { code:'ml', label:'മലയാളം — Malayalam' },
+  { code:'mr', label:'मराठी — Marathi' },
+  { code:'gu', label:'ગુજરાતી — Gujarati' },
+  { code:'pa', label:'ਪੰਜਾਬੀ — Punjabi' },
+  { code:'bn', label:'বাংলা — Bengali' },
+  { code:'or', label:'ଓଡ଼ିଆ — Odia' },
+  { code:'as', label:'অসমীয়া — Assamese' },
+  { code:'ur', label:'اردو — Urdu' },
+  { code:'ks', label:'कॉशुर — Kashmiri' },
+  { code:'sd', label:'سنڌي — Sindhi' },
+  { code:'ne', label:'नेपाली — Nepali' },
+  { code:'sa', label:'संस्कृतम् — Sanskrit' },
+  // World languages (most spoken globally)
+  { code:'en', label:'English' },
+  { code:'es', label:'Español — Spanish' },
+  { code:'fr', label:'Français — French' },
+  { code:'ar', label:'العربية — Arabic' },
+  { code:'pt', label:'Português — Portuguese' },
+  { code:'ru', label:'Русский — Russian' },
+  { code:'zh', label:'中文 — Chinese (Mandarin)' },
+  { code:'de', label:'Deutsch — German' },
+  { code:'ja', label:'日本語 — Japanese' },
+  { code:'ko', label:'한국어 — Korean' },
+  { code:'id', label:'Bahasa Indonesia' },
+  { code:'ms', label:'Bahasa Melayu — Malay' },
+  { code:'tr', label:'Türkçe — Turkish' },
+  { code:'sw', label:'Kiswahili — Swahili' },
+  { code:'vi', label:'Tiếng Việt — Vietnamese' },
+  { code:'th', label:'ภาษาไทย — Thai' },
+  { code:'it', label:'Italiano — Italian' },
+  { code:'nl', label:'Nederlands — Dutch' },
+];
 const BLANK = { fullName:'', age:'', grade:'', language:'en', studentCode:'', parentEmail:'' };
 
 export default function StudentsPage() {
@@ -131,7 +169,7 @@ export default function StudentsPage() {
               <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:6, color:'#374151' }}>Language</label>
               <select value={form.language||'en'} onChange={e => setForm(f=>({...f,language:e.target.value}))}
                 style={{ width:'100%', padding:'10px 12px', border:'1.5px solid #e5e7eb', borderRadius:8, fontSize:14 }}>
-                {LANGS.map(l => <option key={l} value={l}>{l.toUpperCase()}</option>)}
+                {LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
               </select>
             </div>
 
