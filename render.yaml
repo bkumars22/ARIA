@@ -54,10 +54,8 @@ services:
     plan: free
     region: singapore
     envVars:
-      - key: ANTHROPIC_API_KEY
-        sync: false                # you fill this in Render dashboard
-      - key: INTERNAL_SECRET
-        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false                # paste your free key from console.groq.com
       - key: BACKEND_URL
         value: https://aria-backend.onrender.com/aria
 
