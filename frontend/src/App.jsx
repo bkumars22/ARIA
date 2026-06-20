@@ -7,8 +7,10 @@ import SessionsPage        from './pages/SessionsPage';
 import ReportsPage         from './pages/ReportsPage';
 import UsersPage           from './pages/UsersPage';
 import ProgressPage        from './pages/ProgressPage';
-import DocumentTeacherPage from './pages/DocumentTeacherPage';
-import DocumentHistoryPage from './pages/DocumentHistoryPage';
+import DocumentTeacherPage  from './pages/DocumentTeacherPage';
+import DocumentHistoryPage  from './pages/DocumentHistoryPage';
+import HomeworkHelperPage   from './pages/HomeworkHelperPage';
+import HomeworkHistoryPage  from './pages/HomeworkHistoryPage';
 
 function PrivateRoute({ children, roles }) {
   const token = sessionStorage.getItem('aria_token');
@@ -52,6 +54,12 @@ export default function App() {
           element={<PrivateRoute roles={['ADMIN','TEACHER']}><DocumentTeacherPage /></PrivateRoute>} />
         <Route path="/document-history"
           element={<PrivateRoute roles={['ADMIN','TEACHER']}><DocumentHistoryPage /></PrivateRoute>} />
+
+        {/* Homework Helper — all authenticated users */}
+        <Route path="/homework-helper"
+          element={<PrivateRoute><HomeworkHelperPage /></PrivateRoute>} />
+        <Route path="/homework-history"
+          element={<PrivateRoute><HomeworkHistoryPage /></PrivateRoute>} />
 
         <Route path="/"  element={<Navigate to="/dashboard" replace />} />
         <Route path="*"  element={<Navigate to="/dashboard" replace />} />

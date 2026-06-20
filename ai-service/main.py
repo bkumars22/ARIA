@@ -437,6 +437,242 @@ Return JSON: {{"explanation": "your answer here", "practice_questions": [], "key
         return {"explanation": raw, "practice_questions": [], "key_points": []}
 
 
+# ─── /homework/solve — Genuine homework answers ────────────────
+
+import json as _json
+
+_hw_rate_log: dict[str, list] = defaultdict(list)
+
+HOMEWORK_SYSTEM_PROMPT = """You are ARIA — the most powerful, genuine, caring teacher in the world.
+A student has come to you for real help with their studies.
+
+YOUR CORE MISSION:
+- Give 100% correct, genuine academic answers
+- Teach the concept so deeply the student truly understands it
+- Help them finish their homework with proper working shown
+- Make sure they can answer similar questions in their exam
+
+TEACHING RULES BY STUDENT LEVEL:
+If student_level = WEAK:
+  - Start from absolute basics — assume zero prior knowledge
+  - Use very simple language, mother tongue words mixed in if needed
+  - Use real life examples they know (cricket, food, family, animals)
+  - Show every single step — no skipping
+  - Use emojis to make it friendly 🌟
+  - End with: "Now you try this similar problem: [give one easy problem]"
+
+If student_level = AVERAGE:
+  - Brief concept recap first
+  - Show clear step-by-step working with explanation of each step
+  - Give one similar example after solving
+  - Point out common mistakes students make
+  - End with exam tip
+
+If student_level = STRONG:
+  - Give complete expert answer with full working
+  - Explain the deeper concept behind the answer
+  - Show alternative methods if they exist
+  - Give board exam style answer format
+  - Point out marks allocation for each step
+  - Challenge them with a harder variant question
+
+SUBJECT-SPECIFIC RULES:
+Mathematics:
+  - Always show complete working — every step numbered
+  - State the formula used before applying it
+  - Show units in every step
+  - Verify the answer at the end
+  - For CBSE: follow NCERT method exactly
+  - For IGCSE: show working as Cambridge mark scheme expects
+
+Science (Physics/Chemistry/Biology):
+  - State the law or principle being used
+  - Show formula, substitution, calculation separately
+  - Include units always
+  - For experiments: state observation and conclusion
+
+English:
+  - For comprehension: answer in complete sentences, quote from passage
+  - For grammar: explain the rule, then apply it
+  - For essay/letter: give complete model answer with format
+
+History/Geography/Social Studies:
+  - Give factual, accurate answers with dates and names
+  - Structure: Point → Explanation → Example
+  - For CBSE: follow NCERT facts exactly
+
+Coding/Computer Science:
+  - Give complete working code
+  - Add comments to every line explaining what it does
+  - Explain the logic before the code
+  - Show expected output clearly
+
+ANSWER FORMAT — Return JSON with EXACTLY these keys:
+{
+  "subject_detected": "Mathematics",
+  "topic_detected": "Quadratic Equations",
+  "difficulty_level": "Grade 9",
+  "board_reference": "NCERT Class 9 Chapter 4",
+  "concept_explanation": "Brief what-is-this explanation (2-3 sentences)",
+  "complete_solution": "Full step-by-step solution with ALL working shown",
+  "key_points": ["point1", "point2", "point3"],
+  "exam_tip": "One specific tip for this type of question in exams",
+  "practice_problem": "One similar problem for the student to try",
+  "verification": "How to check the answer is correct",
+  "answer_confidence": 0.95,
+  "language_used": "en"
+}
+
+ACCURACY RULE: Your answer must be 100% correct.
+For Mathematics: verify calculations before responding.
+Return ONLY valid JSON — no text before or after."""
+
+class HomeworkRequest(BaseModel):
+    document_base64:  str = ""
+    document_type:    str = "none"   # pdf | image | none
+    student_question: str = ""
+    student_name:     str = "Student"
+    grade:            int = 5
+    board:            str = "CBSE"
+    subject:          str = "General"
+    language:         str = "en"
+    student_level:    str = "AVERAGE"   # WEAK | AVERAGE | STRONG
+    want_full_answer: bool = True
+    want_step_by_step: bool = True
+    prior_context:    Optional[str] = None  # for follow-ups
+
+@app.post("/homework/solve")
+async def homework_solve(req: HomeworkRequest, request: Request):
+    # Rate limit: 20 requests/min per IP
+    ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    window = [t for t in _hw_rate_log[ip] if now - t < 60]
+    if len(window) >= 20:
+        raise HTTPException(status_code=429, detail="Rate limit: 20 homework requests per minute.")
+    _hw_rate_log[ip] = window + [now]
+
+    lang_name = LANG_NAMES.get(req.language, "English")
+
+    # Build the user message
+    user_parts: list = []
+
+    # Document (if provided)
+    if req.document_base64 and req.document_base64.strip():
+        if req.document_type == "image":
+            user_parts.append({
+                "type": "image",
+                "source": {"type": "base64", "media_type": "image/jpeg", "data": req.document_base64}
+            })
+        elif req.document_type == "pdf":
+            user_parts.append({
+                "type": "document",
+                "source": {"type": "base64", "media_type": "application/pdf", "data": req.document_base64}
+            })
+
+    # Prior context for follow-ups
+    if req.prior_context:
+        user_parts.append({"type": "text", "text": f"Previous explanation context:\n{req.prior_context[:800]}"})
+
+    # The actual question text
+    question_text = (
+        f"Student: {req.student_name}, Grade {req.grade}, Board: {req.board}\n"
+        f"Subject: {req.subject}\n"
+        f"Student level: {req.student_level}\n"
+        f"Language to answer in: {lang_name}\n"
+        f"Show step-by-step: {req.want_step_by_step}\n"
+        f"Question: {req.student_question if req.student_question.strip() else 'Please read and solve all questions in the uploaded document.'}"
+    )
+    user_parts.append({"type": "text", "text": question_text})
+
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=3000,
+        system=HOMEWORK_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": user_parts}]
+    )
+
+    raw = response.content[0].text.strip()
+
+    # Parse JSON
+    try:
+        data = _json.loads(raw)
+    except Exception:
+        m = __import__('re').search(r'\{[\s\S]+\}', raw)
+        data = _json.loads(m.group()) if m else {
+            "subject_detected": req.subject,
+            "topic_detected": "Your question",
+            "concept_explanation": "",
+            "complete_solution": raw,
+            "key_points": [],
+            "exam_tip": "",
+            "practice_problem": "",
+            "verification": "",
+            "answer_confidence": 0.85,
+            "language_used": req.language
+        }
+
+    return data
+
+
+# ─── /homework/detect — Auto-detect subject/topic/grade ────────
+
+class DetectRequest(BaseModel):
+    document_base64: str = ""
+    document_type:   str = "none"
+    question:        str = ""
+
+@app.post("/homework/detect")
+async def homework_detect(req: DetectRequest):
+    user_parts: list = []
+
+    if req.document_base64.strip():
+        if req.document_type == "image":
+            user_parts.append({
+                "type": "image",
+                "source": {"type": "base64", "media_type": "image/jpeg", "data": req.document_base64}
+            })
+        elif req.document_type == "pdf":
+            user_parts.append({
+                "type": "document",
+                "source": {"type": "base64", "media_type": "application/pdf", "data": req.document_base64}
+            })
+
+    if req.question.strip():
+        user_parts.append({"type": "text", "text": f"Question text: {req.question}"})
+
+    if not user_parts:
+        raise HTTPException(status_code=400, detail="Provide a document or question text.")
+
+    user_parts.append({"type": "text", "text": """Analyze this document/question and return ONLY valid JSON:
+{
+  "subject": "Mathematics",
+  "topic": "Quadratic Equations",
+  "chapter": "Chapter 4",
+  "estimated_grade": 9,
+  "board_detected": "CBSE",
+  "ncert_reference": "NCERT Class 9 Mathematics Chapter 4",
+  "question_type": "CALCULATION",
+  "estimated_marks": 3,
+  "difficulty": "MEDIUM",
+  "keywords_found": ["quadratic", "equation", "roots"]
+}
+question_type must be one of: CALCULATION | THEORY | MCQ | FILL_BLANK | SHORT_ANSWER | LONG_ANSWER | DIAGRAM | PROBLEM_SOLVING
+Return ONLY the JSON."""})
+
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=400,
+        messages=[{"role": "user", "content": user_parts}]
+    )
+
+    raw = response.content[0].text.strip()
+    try:
+        return _json.loads(raw)
+    except Exception:
+        m = __import__('re').search(r'\{[\s\S]+\}', raw)
+        return _json.loads(m.group()) if m else {"subject": "General", "estimated_grade": 5}
+
+
 # ─── /health ──────────────────────────────────────────────────
 @app.get("/health")
 async def health():

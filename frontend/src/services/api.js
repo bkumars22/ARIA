@@ -618,4 +618,89 @@ export async function explainDocumentFollowup(sessionId, question) {
   return api.post(`/api/documents/${sessionId}/followup`, { question });
 }
 
+// ─── HOMEWORK HELPER ──────────────────────────────────────────
+
+const DEMO_HW_ANSWER = {
+  subject_detected:    'Mathematics',
+  topic_detected:      'Quadratic Equations',
+  difficulty_level:    'Grade 9',
+  board_reference:     'NCERT Class 9 — Chapter 4',
+  concept_explanation: 'A quadratic equation is an equation where the highest power of x is 2. It has the form ax² + bx + c = 0. Every quadratic equation has exactly two roots (answers).',
+  complete_solution:   '📐 Using the factorisation method:\n\nGiven: x² + 5x + 6 = 0\n\n1. Find two numbers that multiply to 6 and add to 5\n   → The numbers are 2 and 3 (because 2 × 3 = 6 and 2 + 3 = 5)\n\n2. Split the middle term:\n   x² + 2x + 3x + 6 = 0\n\n3. Group and factorise:\n   x(x + 2) + 3(x + 2) = 0\n   (x + 3)(x + 2) = 0\n\n4. Find the roots:\n   x + 3 = 0  →  x = -3\n   x + 2 = 0  →  x = -2\n\n✅ Answer: x = -2 or x = -3',
+  key_points:          ['Quadratic means power of 2', 'Always two roots (may be equal)', 'Can solve by factorisation, formula, or completing the square'],
+  exam_tip:            'In CBSE exams, always verify your roots by substituting back into the original equation.',
+  practice_problem:    'Solve: x² - 7x + 12 = 0',
+  verification:        'Check x = -2: (-2)² + 5(-2) + 6 = 4 - 10 + 6 = 0 ✅\nCheck x = -3: (-3)² + 5(-3) + 6 = 9 - 15 + 6 = 0 ✅',
+  answer_confidence:   0.97,
+  language_used:       'en',
+};
+
+export async function solveHomework(payload) {
+  if (DEMO) {
+    await delay(1800);
+    const q = (payload.student_question || '').toLowerCase();
+    return {
+      data: {
+        ...DEMO_HW_ANSWER,
+        topic_detected:     q.includes('photo') ? 'Photosynthesis' : q.includes('newton') ? "Newton's Laws" : DEMO_HW_ANSWER.topic_detected,
+        subject_detected:   payload.subject || DEMO_HW_ANSWER.subject_detected,
+        sessionId:          null,
+        sessionCode:        'demo-' + Date.now(),
+      }
+    };
+  }
+  const form = new FormData();
+  if (payload._file instanceof File) {
+    form.append('file', payload._file);
+  } else if (payload.document_base64) {
+    const mime = payload.document_type === 'pdf' ? 'application/pdf' : 'image/jpeg';
+    const ext  = payload.document_type === 'pdf' ? 'pdf' : 'jpg';
+    try {
+      const bytes = atob(payload.document_base64);
+      const buf = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
+      form.append('file', new Blob([buf], { type: mime }), 'homework.' + ext);
+    } catch { /* skip */ }
+  }
+  if (payload.student_question)  form.append('studentQuestion',  payload.student_question);
+  if (payload.grade)             form.append('grade',            String(payload.grade));
+  if (payload.board)             form.append('board',            payload.board);
+  if (payload.subject)           form.append('subject',          payload.subject);
+  if (payload.language)          form.append('language',         payload.language);
+  if (payload.student_level)     form.append('studentLevel',     payload.student_level);
+  if (payload.want_full_answer !== undefined) form.append('wantFullAnswer',  String(payload.want_full_answer));
+  if (payload.want_step_by_step !== undefined) form.append('wantStepByStep', String(payload.want_step_by_step));
+  return api.post('/api/homework/solve', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+}
+
+export async function getHomeworkHistory(studentId) {
+  if (DEMO) {
+    await delay(400);
+    return { data: { success: true, data: [
+      { id:1, subject:'Mathematics', topicDetected:'Quadratic Equations', boardReference:'NCERT Class 9 Ch 4', originalQuestion:'Solve x² + 5x + 6 = 0', examTip:'Always verify roots by substituting back.', hasDocument:false, totalFollowups:1, grade:9, createdAt: new Date(Date.now()-86400000).toISOString() },
+      { id:2, subject:'Science',     topicDetected:'Photosynthesis',      boardReference:'NCERT Class 8 Ch 1', originalQuestion:'What is photosynthesis?', examTip:'Remember the equation: CO₂ + H₂O → Glucose + O₂.', hasDocument:false, totalFollowups:0, grade:8, createdAt: new Date(Date.now()-172800000).toISOString() },
+    ]}};
+  }
+  return api.get(`/api/homework/history/${studentId}`);
+}
+
+export async function detectSubject(payload) {
+  if (DEMO) {
+    await delay(600);
+    return { data: { subject: 'Mathematics', topic: 'Quadratic Equations', estimated_grade: 9, board_detected: 'CBSE', ncert_reference: 'NCERT Class 9 Chapter 4' } };
+  }
+  const form = new FormData();
+  if (payload.document_base64) {
+    const mime = payload.document_type === 'pdf' ? 'application/pdf' : 'image/jpeg';
+    try {
+      const bytes = atob(payload.document_base64);
+      const buf = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
+      form.append('file', new Blob([buf], { type: mime }), 'doc.' + (payload.document_type === 'pdf' ? 'pdf' : 'jpg'));
+    } catch { /* skip */ }
+  }
+  if (payload.question) form.append('question', payload.question);
+  return api.post('/api/homework/detect', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+}
+
 export default api;
