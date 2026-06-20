@@ -572,13 +572,28 @@ export async function explainDocument(payload) {
       }
     };
   }
-  // Production: multipart to Spring Boot
+  // Production: build FormData — handle real File or camera base64 capture
   const form = new FormData();
-  if (payload._file) form.append('file', payload._file);
-  Object.entries(payload).forEach(([k, v]) => {
-    if (k !== '_file' && k !== 'document_base64' && v !== undefined)
-      form.append(k, v);
-  });
+  if (payload._file instanceof File) {
+    // Normal file upload — attach directly
+    form.append('file', payload._file);
+  } else if (payload.document_base64) {
+    // Camera capture or PDF already base64-encoded — convert back to Blob
+    const mime = payload.document_type === 'pdf' ? 'application/pdf' : 'image/jpeg';
+    const ext  = payload.document_type === 'pdf' ? 'pdf' : 'jpg';
+    try {
+      const byteStr = atob(payload.document_base64);
+      const buf = new Uint8Array(byteStr.length);
+      for (let i = 0; i < byteStr.length; i++) buf[i] = byteStr.charCodeAt(i);
+      form.append('file', new Blob([buf], { type: mime }), 'document.' + ext);
+    } catch { /* base64 decode failed — let server reject */ }
+  }
+  form.append('grade',    String(payload.grade    || 5));
+  form.append('level',    payload.level    || 'INTERMEDIATE');
+  form.append('language', payload.language || 'en');
+  form.append('board',    payload.board    || 'CBSE');
+  if (payload.specific_question) form.append('question', payload.specific_question);
+  if (payload.studentId)         form.append('studentId', String(payload.studentId));
   return api.post('/api/documents/explain', form, { headers: { 'Content-Type': 'multipart/form-data' } });
 }
 

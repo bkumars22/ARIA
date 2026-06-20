@@ -16,12 +16,34 @@ app = FastAPI(
     version="1.0.0"
 )
 
+ALLOWED_ORIGINS = [
+    "https://bkumars22.github.io",
+    "https://aria-backend.onrender.com",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:8089",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"]
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+    allow_credentials=False,
 )
+
+# ── Security: AI service must not be reachable from the public internet.
+#    It should only receive requests from the Spring Boot backend (internal).
+#    The INTERNAL_SECRET env var provides an extra layer of defence-in-depth.
+INTERNAL_SECRET = os.getenv("INTERNAL_SECRET", "")
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"]         = "DENY"
+    response.headers["Referrer-Policy"]         = "strict-origin-when-cross-origin"
+    return response
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
