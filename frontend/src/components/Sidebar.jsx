@@ -7,12 +7,16 @@ const NAV = {
     { path: '/users',     icon: '👥', label: 'Users' },
     { path: '/students',  icon: '🎓', label: 'All Students' },
     { path: '/sessions',  icon: '📚', label: 'Sessions' },
+    { path: '/document-teacher',  icon: '📄', label: 'Document Teacher', badge: 'NEW' },
+    { path: '/document-history',  icon: '📋', label: 'Document History' },
   ],
   TEACHER: [
     { path: '/dashboard', icon: '📊', label: 'Dashboard' },
     { path: '/students',  icon: '🎓', label: 'My Students' },
     { path: '/sessions',  icon: '📚', label: 'Sessions' },
     { path: '/reports',   icon: '📝', label: 'Reports' },
+    { path: '/document-teacher',  icon: '📄', label: 'Document Teacher', badge: 'NEW' },
+    { path: '/document-history',  icon: '📋', label: 'Document History' },
   ],
   PARENT: [
     { path: '/dashboard', icon: '🏠', label: 'Home' },
@@ -123,7 +127,13 @@ export default function Sidebar() {
                 onClick={() => go(l.path)}
                 style={{ ...s.link, ...(location.pathname === l.path ? s.active : {}) }}>
                 <span style={s.icon}>{l.icon}</span>
-                <span>{l.label}</span>
+                <span style={{ flex:1 }}>{l.label}</span>
+                {l.badge && (
+                  <span style={{ fontSize:9, fontWeight:800, background:'#22c55e', color:'#fff',
+                                 padding:'2px 6px', borderRadius:6, letterSpacing:0.5 }}>
+                    {l.badge}
+                  </span>
+                )}
               </div>
             ))}
           </nav>

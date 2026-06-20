@@ -52,7 +52,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick actions */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:16, marginBottom:32 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:16, marginBottom:24 }}>
           {user.role !== 'PARENT' && (
             <ActionCard icon="🎓" title="Add Student" desc="Enrol a new student" color="#667eea"
               onClick={() => navigate('/students')} />
@@ -68,6 +68,47 @@ export default function Dashboard() {
               onClick={() => navigate('/users')} />
           )}
         </div>
+
+        {/* Document Teacher feature card */}
+        {user.role !== 'PARENT' && (
+          <div style={{ marginBottom:32 }}>
+            <div onClick={() => navigate('/document-teacher')}
+              style={{ background:'linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#a855f7 100%)',
+                       borderRadius:16, padding:'24px 28px', cursor:'pointer', position:'relative',
+                       overflow:'hidden', boxShadow:'0 4px 20px rgba(99,102,241,0.35)',
+                       display:'flex', alignItems:'center', justifyContent:'space-between', gap:20,
+                       flexWrap:'wrap' }}>
+              {/* Decorative circles */}
+              <div style={{ position:'absolute', top:-30, right:-30, width:120, height:120,
+                            borderRadius:'50%', background:'rgba(255,255,255,0.08)' }} />
+              <div style={{ position:'absolute', bottom:-20, right:60, width:80, height:80,
+                            borderRadius:'50%', background:'rgba(255,255,255,0.06)' }} />
+              <div style={{ position:'relative' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+                  <span style={{ fontSize:28 }}>📄</span>
+                  <div style={{ fontWeight:900, color:'#fff', fontSize:20 }}>Document Teacher</div>
+                  <span style={{ background:'#22c55e', color:'#fff', fontSize:10, fontWeight:800,
+                                 padding:'3px 8px', borderRadius:6, letterSpacing:0.5 }}>NEW</span>
+                </div>
+                <div style={{ color:'rgba(255,255,255,0.85)', fontSize:14, maxWidth:480, lineHeight:1.6 }}>
+                  Upload any textbook page, question paper, or handwritten notes —
+                  ARIA explains everything from basics to expert level in 35+ languages 🌍
+                </div>
+                <div style={{ display:'flex', gap:8, marginTop:12, flexWrap:'wrap' }}>
+                  {['📸 Camera scan','🌐 35 languages','📊 Beginner → Expert','📝 Practice questions'].map(t => (
+                    <span key={t} style={{ background:'rgba(255,255,255,0.15)', color:'#fff',
+                                           fontSize:11, padding:'4px 10px', borderRadius:20, fontWeight:600 }}>{t}</span>
+                  ))}
+                </div>
+              </div>
+              <button style={{ background:'#fff', color:'#6366f1', border:'none', borderRadius:12,
+                               padding:'12px 24px', fontWeight:800, fontSize:14, cursor:'pointer',
+                               boxShadow:'0 2px 8px rgba(0,0,0,0.12)', whiteSpace:'nowrap', position:'relative' }}>
+                Try Now →
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Recent sessions */}
         <div style={{ background:'#fff', borderRadius:14, boxShadow:'0 1px 6px rgba(0,0,0,0.06)', overflow:'hidden' }}>

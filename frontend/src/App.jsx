@@ -1,12 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import LoginPage    from './pages/LoginPage';
-import Dashboard    from './pages/Dashboard';
-import StudentsPage from './pages/StudentsPage';
-import TutorPage    from './pages/TutorPage';
-import SessionsPage from './pages/SessionsPage';
-import ReportsPage  from './pages/ReportsPage';
-import UsersPage    from './pages/UsersPage';
-import ProgressPage from './pages/ProgressPage';
+import LoginPage           from './pages/LoginPage';
+import Dashboard           from './pages/Dashboard';
+import StudentsPage        from './pages/StudentsPage';
+import TutorPage           from './pages/TutorPage';
+import SessionsPage        from './pages/SessionsPage';
+import ReportsPage         from './pages/ReportsPage';
+import UsersPage           from './pages/UsersPage';
+import ProgressPage        from './pages/ProgressPage';
+import DocumentTeacherPage from './pages/DocumentTeacherPage';
+import DocumentHistoryPage from './pages/DocumentHistoryPage';
 
 function PrivateRoute({ children, roles }) {
   const token = sessionStorage.getItem('aria_token');
@@ -44,6 +46,12 @@ export default function App() {
 
         {/* Parent only */}
         <Route path="/progress"  element={<PrivateRoute roles={['PARENT']}><ProgressPage /></PrivateRoute>} />
+
+        {/* Document Teacher — Teacher + Admin */}
+        <Route path="/document-teacher"
+          element={<PrivateRoute roles={['ADMIN','TEACHER']}><DocumentTeacherPage /></PrivateRoute>} />
+        <Route path="/document-history"
+          element={<PrivateRoute roles={['ADMIN','TEACHER']}><DocumentHistoryPage /></PrivateRoute>} />
 
         <Route path="/"  element={<Navigate to="/dashboard" replace />} />
         <Route path="*"  element={<Navigate to="/dashboard" replace />} />

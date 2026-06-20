@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { LESSONS, MENTOR } from './lessonData.js';
 import { BOARD_LESSONS, BOARD_INTRO } from './boardData.js';
+import { findAnswer, isConfused } from './qaEngine.js';
 import {
   MOCK_TOKEN, MOCK_STUDENTS, MOCK_PROGRESS,
   MOCK_USERS, getMockSessions, addMockSession,
@@ -351,14 +352,26 @@ export async function chat(sessionId, payload) {
       state.boardIntroShown = true;
       state.subTurn = 1;
     } else if (state.subTurn === 1) {
-      if (lesson.check(input)) {
+      // Check genuine questions first — never mark a real question as "wrong"
+      const qaAnswer = findAnswer(input, subject, lang, name);
+      if (qaAnswer) {
+        response = qaAnswer;
+        score = 65; // neutral score for a question turn
+        // Don't advance subTurn — still waiting for lesson answer
+      } else if (isConfused(input)) {
+        // Student is confused — encourage and re-explain without penalising
+        response = lesson.wrong(name, lang);
+        score = 45;
+        // Stay on subTurn 1 so they get another chance
+      } else if (lesson.check(input)) {
         response = lesson.correct(name, lang);
         score = 75 + Math.random() * 20;
+        state.subTurn = 2;
       } else {
         response = lesson.wrong(name, lang);
         score = 40 + Math.random() * 25;
+        state.subTurn = 2;
       }
-      state.subTurn = 2;
     } else if (state.subTurn === 2) {
       if (lesson.nextCheck(input)) {
         response = lesson.nextCorrect(name, lang) + '\n\n' + M.wellDone(name);
@@ -437,6 +450,157 @@ export async function getDashboard() {
 export async function generateReport(payload) {
   if (DEMO) { await delay(1800); return { data: { success:true, report:MOCK_REPORT } }; }
   return api.post('http://localhost:8001/report', payload);
+}
+
+// ─── DOCUMENT TEACHER ─────────────────────────────────────────
+
+const DEMO_DOC_HISTORY = [
+  {
+    id: 1,
+    session_code: 'DOC-DEMO001',
+    student_id: 1,
+    document_name: 'fractions_chapter.jpg',
+    document_type: 'image',
+    subject_detected: 'Mathematics',
+    topic_detected: 'Fractions and Decimals',
+    grade_detected: 5,
+    explanation_level: 'INTERMEDIATE',
+    language: 'en',
+    board: 'CBSE',
+    difficulty_rating: 3,
+    explanation: `## Fractions — Clear Step-by-Step Guide
+
+**What is a fraction?**
+A fraction represents a part of a whole. It has two parts separated by a line:
+• **Numerator** (top) — how many parts you have
+• **Denominator** (bottom) — total equal parts the whole is divided into
+
+**Example:** If a pizza is cut into 8 equal slices and you eat 3 slices, you ate **3/8** of the pizza!
+
+## Types of Fractions
+
+• **Proper fraction:** numerator < denominator (e.g., 3/4 — less than a whole)
+• **Improper fraction:** numerator > denominator (e.g., 7/4 — more than a whole)
+• **Mixed number:** whole + fraction (e.g., 1¾ = 7/4)
+
+## Adding Fractions
+
+**Same denominator:** Just add the numerators!
+1/4 + 2/4 = 3/4 ✓
+
+**Different denominators:** Find the LCM first.
+1/3 + 1/4 → LCM = 12 → 4/12 + 3/12 = **7/12**
+
+You're doing great — fractions are used in cooking, money, and even music! 🎵`,
+    practice_questions: [
+      'If you have 2/5 of a chocolate bar and your friend gives you another 1/5, what fraction do you have in total?',
+      'Convert 11/4 into a mixed number.',
+      'Arrange in ascending order: 3/4, 1/2, 2/3, 5/6',
+    ],
+    key_points: [
+      'Fraction = part of a whole; numerator on top, denominator below',
+      'To add fractions with different denominators, find the LCM first',
+      'Improper fractions can be converted to mixed numbers by dividing',
+      'Equivalent fractions represent the same amount (1/2 = 2/4 = 4/8)',
+    ],
+    created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+  },
+  {
+    id: 2,
+    session_code: 'DOC-DEMO002',
+    student_id: 1,
+    document_name: 'photosynthesis_notes.pdf',
+    document_type: 'pdf',
+    subject_detected: 'Science',
+    topic_detected: 'Photosynthesis',
+    grade_detected: 6,
+    explanation_level: 'BEGINNER',
+    language: 'en',
+    board: 'CBSE',
+    difficulty_rating: 2,
+    explanation: `## 🌱 Photosynthesis — How Plants Make Food!
+
+Plants are amazing! They make their OWN food using sunlight — just like a kitchen that runs on sunshine ☀️
+
+**The plant's recipe:**
+• 💧 Water (from roots underground)
+• 🌬️ Carbon dioxide gas (CO₂ from the air)
+• ☀️ Sunlight
+
+**What comes out:**
+• 🍬 Glucose (sugar = plant's food!)
+• 💨 Oxygen (the air WE breathe!)
+
+**Where does it happen?** In the green leaves! The green colour comes from **chlorophyll** — it's like the plant's solar panel.
+
+Think of it like a magic kitchen: water + air + sunshine goes IN, food + clean air comes OUT!
+
+This is why forests are SO important — they give us the air we breathe! 🌍`,
+    practice_questions: [
+      'What are the three things a plant needs to make food?',
+      'What do we call the green substance in leaves that captures sunlight?',
+      'Name TWO things that plants produce during photosynthesis.',
+    ],
+    key_points: [
+      'Plants make food using sunlight, water, and CO₂',
+      'Chlorophyll (green pigment in leaves) captures sunlight',
+      'Photosynthesis produces glucose (food) and oxygen',
+      'This process is why plants are called "producers" in food chains',
+    ],
+    created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+  },
+];
+
+export async function explainDocument(payload) {
+  if (DEMO) {
+    await delay(2200);
+    // Return a realistic demo explanation based on subject keywords
+    const subject = payload.specific_question?.toLowerCase() || '';
+    const isSci   = subject.includes('photo') || subject.includes('science') || subject.includes('bio');
+    const demo    = isSci ? DEMO_DOC_HISTORY[1] : DEMO_DOC_HISTORY[0];
+    return {
+      data: {
+        subject_detected:   demo.subject_detected,
+        topic_detected:     demo.topic_detected,
+        grade_detected:     payload.grade || 5,
+        explanation:        demo.explanation,
+        practice_questions: demo.practice_questions,
+        key_points:         demo.key_points,
+        difficulty_rating:  demo.difficulty_rating,
+        sessionId:          Date.now(),
+        sessionCode:        'DOC-DEMO' + Math.floor(Math.random() * 9000 + 1000),
+      }
+    };
+  }
+  // Production: multipart to Spring Boot
+  const form = new FormData();
+  if (payload._file) form.append('file', payload._file);
+  Object.entries(payload).forEach(([k, v]) => {
+    if (k !== '_file' && k !== 'document_base64' && v !== undefined)
+      form.append(k, v);
+  });
+  return api.post('/api/documents/explain', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+}
+
+export async function getDocumentHistory(studentId) {
+  if (DEMO) { await delay(400); return { data: { data: DEMO_DOC_HISTORY } }; }
+  return api.get(`/api/documents/history/${studentId}`);
+}
+
+export async function getDocumentSession(sessionId) {
+  if (DEMO) {
+    const doc = DEMO_DOC_HISTORY.find(d => d.id === sessionId) || DEMO_DOC_HISTORY[0];
+    return { data: { data: doc } };
+  }
+  return api.get(`/api/documents/${sessionId}`);
+}
+
+export async function explainDocumentFollowup(sessionId, question) {
+  if (DEMO) {
+    await delay(1500);
+    return { data: { explanation: `Great follow-up question! Based on what we covered, here's a clearer explanation:\n\n${question.includes('formula') ? '**The formula is:**\nStep 1 → Step 2 → Step 3\n\nRemember: always check your units!' : 'Let me break this down more simply...\n\nThink of it like this: imagine you have 10 apples and you share them equally among friends. That\'s exactly how this concept works!'}\n\nDoes that make more sense now? 😊` } };
+  }
+  return api.post(`/api/documents/${sessionId}/followup`, { question });
 }
 
 export default api;
