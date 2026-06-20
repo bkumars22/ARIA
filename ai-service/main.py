@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 import anthropic
-import slowapi
 from agents.teaching_agent import run_teaching_turn
 
 app = FastAPI(

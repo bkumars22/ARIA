@@ -56,6 +56,8 @@ services:
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false                # you fill this in Render dashboard
+      - key: INTERNAL_SECRET
+        generateValue: true
       - key: BACKEND_URL
         value: https://aria-backend.onrender.com/aria
 

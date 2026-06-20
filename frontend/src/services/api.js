@@ -13,6 +13,12 @@ import {
 const DEMO    = process.env.REACT_APP_DEMO_MODE === 'true';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8089/aria';
 
+// Direct AI service URL — when set, real document uploads skip demo mode
+// and call Claude AI directly from the browser via the deployed FastAPI service.
+// Set REACT_APP_AI_SERVICE_URL=https://your-service.onrender.com in .env.production
+const AI_SVC  = process.env.REACT_APP_AI_SERVICE_URL || '';
+const aiSvc   = AI_SVC ? axios.create({ baseURL: AI_SVC }) : null;
+
 const delay = (ms = 400) => new Promise(r => setTimeout(r, ms));
 const mock  = async (data, ms = 350) => { await delay(ms); return { data: { success: true, data } }; };
 
@@ -552,9 +558,24 @@ This is why forests are SO important — they give us the air we breathe! 🌍`,
 ];
 
 export async function explainDocument(payload) {
+  // If AI service is deployed — call Claude directly for genuine answers
+  if (aiSvc && payload.document_base64) {
+    const res = await aiSvc.post('/document/explain', {
+      document_base64:   payload.document_base64,
+      document_type:     payload.document_type || 'image',
+      student_name:      payload.student_name || 'Student',
+      grade:             payload.grade || 5,
+      level:             payload.level || 'INTERMEDIATE',
+      language:          payload.language || 'en',
+      specific_question: payload.specific_question || null,
+      board:             payload.board || 'CBSE',
+    });
+    return { data: res.data };
+  }
+
+  // Demo fallback (shown only when no AI service is configured)
   if (DEMO) {
     await delay(2200);
-    // Return a realistic demo explanation based on subject keywords
     const subject = payload.specific_question?.toLowerCase() || '';
     const isSci   = subject.includes('photo') || subject.includes('science') || subject.includes('bio');
     const demo    = isSci ? DEMO_DOC_HISTORY[1] : DEMO_DOC_HISTORY[0];
@@ -572,13 +593,12 @@ export async function explainDocument(payload) {
       }
     };
   }
-  // Production: build FormData — handle real File or camera base64 capture
+
+  // Production path via Spring Boot
   const form = new FormData();
   if (payload._file instanceof File) {
-    // Normal file upload — attach directly
     form.append('file', payload._file);
   } else if (payload.document_base64) {
-    // Camera capture or PDF already base64-encoded — convert back to Blob
     const mime = payload.document_type === 'pdf' ? 'application/pdf' : 'image/jpeg';
     const ext  = payload.document_type === 'pdf' ? 'pdf' : 'jpg';
     try {
@@ -586,7 +606,7 @@ export async function explainDocument(payload) {
       const buf = new Uint8Array(byteStr.length);
       for (let i = 0; i < byteStr.length; i++) buf[i] = byteStr.charCodeAt(i);
       form.append('file', new Blob([buf], { type: mime }), 'document.' + ext);
-    } catch { /* base64 decode failed — let server reject */ }
+    } catch { /* skip */ }
   }
   form.append('grade',    String(payload.grade    || 5));
   form.append('level',    payload.level    || 'INTERMEDIATE');
@@ -636,23 +656,47 @@ const DEMO_HW_ANSWER = {
 };
 
 export async function solveHomework(payload) {
+  const hasDoc = payload.document_base64 && payload.document_base64.length > 10;
+
+  // ── If AI service is configured, call Claude for ALL requests ───
+  // Genuine answers — works even in demo mode when AI service is deployed.
+  if (aiSvc) {
+    const res = await aiSvc.post('/homework/solve', {
+      document_base64:   payload.document_base64,
+      document_type:     payload.document_type || 'image',
+      student_question:  payload.student_question || '',
+      student_name:      payload.student_name || 'Student',
+      grade:             payload.grade || 5,
+      board:             payload.board || 'CBSE',
+      subject:           payload.subject || 'General',
+      language:          payload.language || 'en',
+      student_level:     payload.student_level || 'AVERAGE',
+      want_full_answer:  payload.want_full_answer !== false,
+      want_step_by_step: payload.want_step_by_step !== false,
+    });
+    return { data: res.data };
+  }
+
+  // ── Demo mode (no document uploaded) ─────────────────────────
   if (DEMO) {
     await delay(1800);
     const q = (payload.student_question || '').toLowerCase();
     return {
       data: {
         ...DEMO_HW_ANSWER,
-        topic_detected:     q.includes('photo') ? 'Photosynthesis' : q.includes('newton') ? "Newton's Laws" : DEMO_HW_ANSWER.topic_detected,
-        subject_detected:   payload.subject || DEMO_HW_ANSWER.subject_detected,
-        sessionId:          null,
-        sessionCode:        'demo-' + Date.now(),
+        topic_detected:   q.includes('photo') ? 'Photosynthesis' : q.includes('newton') ? "Newton's Laws" : DEMO_HW_ANSWER.topic_detected,
+        subject_detected: payload.subject || DEMO_HW_ANSWER.subject_detected,
+        sessionId:        null,
+        sessionCode:      'demo-' + Date.now(),
       }
     };
   }
+
+  // ── Production path via Spring Boot ──────────────────────────
   const form = new FormData();
   if (payload._file instanceof File) {
     form.append('file', payload._file);
-  } else if (payload.document_base64) {
+  } else if (hasDoc) {
     const mime = payload.document_type === 'pdf' ? 'application/pdf' : 'image/jpeg';
     const ext  = payload.document_type === 'pdf' ? 'pdf' : 'jpg';
     try {
@@ -685,6 +729,17 @@ export async function getHomeworkHistory(studentId) {
 }
 
 export async function detectSubject(payload) {
+  // Real detection via AI service when deployed
+  if (aiSvc && payload.document_base64) {
+    try {
+      const res = await aiSvc.post('/homework/detect', {
+        document_base64: payload.document_base64,
+        document_type:   payload.document_type || 'image',
+        question:        payload.question || '',
+      });
+      return { data: res.data };
+    } catch { /* detection optional — fall through */ }
+  }
   if (DEMO) {
     await delay(600);
     return { data: { subject: 'Mathematics', topic: 'Quadratic Equations', estimated_grade: 9, board_detected: 'CBSE', ncert_reference: 'NCERT Class 9 Chapter 4' } };
