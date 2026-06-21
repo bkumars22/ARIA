@@ -76,15 +76,19 @@ def chat(system: str, user_parts, model: str = TEXT_MODEL, max_tokens: int = 200
 
 def parse_json(raw: str) -> dict:
     """Extract and parse the first JSON object from a response string."""
+    # Strip markdown code fences (```json ... ``` or ``` ... ```)
+    cleaned = re.sub(r'```(?:json)?\s*', '', raw).strip()
     try:
-        return json.loads(raw)
+        return json.loads(cleaned)
     except Exception:
-        m = re.search(r'\{[\s\S]+\}', raw)
-        if m:
-            try:
-                return json.loads(m.group())
-            except Exception:
-                pass
+        pass
+    # Fallback: find the outermost { ... } block
+    m = re.search(r'\{[\s\S]+\}', cleaned)
+    if m:
+        try:
+            return json.loads(m.group())
+        except Exception:
+            pass
     return {}
 
 
@@ -319,7 +323,7 @@ Rules:
 - If a specific question is asked, answer it in the explanation
 - practice_questions: exactly 3 questions at {level_key} level
 - difficulty_rating: 1 (easy) to 5 (hard)
-- Return ONLY the JSON object"""
+- Return ONLY raw JSON — no markdown, no code blocks, no ```json```"""
 
     user_parts, model = build_vision_content(req.document_base64, req.document_type,
         req.specific_question or "Please read and explain this document as my teacher.")
@@ -386,7 +390,7 @@ History/Geography: Factual answers with specific dates, names, events. Point →
 Coding: Write complete, runnable code. Add comments. Show expected output.
 General Knowledge: Give precise, factual answers. Cite the specific fact, not vague descriptions.
 
-ANSWER FORMAT — Return ONLY this JSON with no extra text before or after:
+ANSWER FORMAT — Return ONLY raw JSON. No markdown. No code blocks. No ```json. No text before or after the JSON:
 {
   "subject_detected": "<actual subject of THIS question>",
   "topic_detected": "<actual topic of THIS question>",
