@@ -2,6 +2,8 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { solveHomework, detectSubject } from '../services/api';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 
 // ─── Shared Voice Button ──────────────────────────────────────
 
@@ -110,25 +112,124 @@ async function toBase64(file) {
   });
 }
 
+// ─── Math helpers ─────────────────────────────────────────────
+
+function renderMath(expr, display = false) {
+  try {
+    return katex.renderToString(expr.trim(), {
+      throwOnError: false,
+      displayMode: display,
+      output: 'html',
+      trust: false,
+    });
+  } catch {
+    return expr;
+  }
+}
+
+// Split a string into text and LaTeX segments.
+// Handles \(...\) inline and \[...\] / $$...$$ block math.
+function parseMathSegments(text) {
+  const segments = [];
+  // Pattern: \(...\) inline, \[...\] or $$...$$ display
+  const RE = /(\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^\n$]+?\$)/g;
+  let last = 0;
+  let m;
+  while ((m = RE.exec(text)) !== null) {
+    if (m.index > last) segments.push({ type: 'text', content: text.slice(last, m.index) });
+    const raw = m[0];
+    const isDisplay = raw.startsWith('\\[') || raw.startsWith('$$');
+    const inner = raw.replace(/^\\\[|^\$\$|^\\\(|^\$/,'').replace(/\\\]$|\$\$$|\\\)$|\$$/,'');
+    segments.push({ type: 'math', content: inner, display: isDisplay });
+    last = m.index + raw.length;
+  }
+  if (last < text.length) segments.push({ type: 'text', content: text.slice(last) });
+  return segments;
+}
+
+// Render inline **bold** and math within a single line
+function InlineLine({ text }) {
+  const segs = parseMathSegments(text);
+  return (
+    <>
+      {segs.map((seg, i) => {
+        if (seg.type === 'math') {
+          return <span key={i} dangerouslySetInnerHTML={{ __html: renderMath(seg.content, seg.display) }} />;
+        }
+        // Bold **...**
+        const parts = seg.content.split(/(\*\*[^*]+\*\*)/g);
+        return (
+          <span key={i}>
+            {parts.map((p, j) =>
+              p.startsWith('**') && p.endsWith('**')
+                ? <strong key={j}>{p.slice(2, -2)}</strong>
+                : p
+            )}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 function RenderSection({ text }) {
   if (!text) return null;
+  const lines = String(text).split('\n');
   return (
-    <div style={{ fontSize:14, lineHeight:1.85, color:'#374151' }}>
-      {String(text).split('\n').map((line, i) => {
-        if (!line.trim()) return <br key={i} />;
-        const bold = s => s.split(/(\*\*[^*]+\*\*)/g).map((p, j) =>
-          p.startsWith('**') && p.endsWith('**') ? <strong key={j}>{p.slice(2,-2)}</strong> : p
-        );
-        if (/^\d+[\.\)]\s/.test(line))
-          return <div key={i} style={{ display:'flex', gap:10, marginBottom:5 }}>
-            <span style={{ minWidth:20, fontWeight:700, color:'#6366f1' }}>{line.split(/[\.\)]/)[0]}.</span>
-            <span>{bold(line.replace(/^\d+[\.\)]\s*/, ''))}</span>
-          </div>;
-        if (line.startsWith('## ')) return <h3 key={i} style={{ margin:'12px 0 5px', fontSize:15, fontWeight:700 }}>{line.slice(3)}</h3>;
-        if (line.startsWith('# '))  return <h2 key={i} style={{ margin:'14px 0 6px', fontSize:17, fontWeight:800 }}>{line.slice(2)}</h2>;
-        if (line.startsWith('• ') || line.startsWith('- '))
-          return <div key={i} style={{ display:'flex', gap:8, marginBottom:4 }}><span>•</span><span>{bold(line.slice(2))}</span></div>;
-        return <p key={i} style={{ margin:'0 0 5px' }}>{bold(line)}</p>;
+    <div style={{ fontSize:14, lineHeight:2, color:'#374151' }}>
+      {lines.map((line, i) => {
+        if (!line.trim()) return <div key={i} style={{ height:6 }} />;
+
+        // Display math block: \[...\] or $$...$$
+        if (/^\s*(\\\[|\$\$)/.test(line)) {
+          const inner = line.replace(/^\s*(\\\[|\$\$)/, '').replace(/(\\\]|\$\$)\s*$/, '');
+          return (
+            <div key={i} style={{ margin:'10px 0', overflowX:'auto', padding:'8px 12px',
+                background:'#f0f4ff', borderRadius:8, borderLeft:'3px solid #6366f1' }}
+              dangerouslySetInnerHTML={{ __html: renderMath(inner, true) }} />
+          );
+        }
+
+        // Headings
+        if (line.startsWith('### ')) return <h4 key={i} style={{ margin:'12px 0 4px', fontSize:14, fontWeight:800, color:'#374151' }}><InlineLine text={line.slice(4)} /></h4>;
+        if (line.startsWith('## '))  return <h3 key={i} style={{ margin:'14px 0 5px', fontSize:15, fontWeight:800, color:'#1a1a2e' }}><InlineLine text={line.slice(3)} /></h3>;
+        if (line.startsWith('# '))   return <h2 key={i} style={{ margin:'16px 0 6px', fontSize:17, fontWeight:900, color:'#1a1a2e' }}><InlineLine text={line.slice(2)} /></h2>;
+
+        // Numbered step  "1." or "Step 1:" pattern
+        if (/^(Step\s*\d+[:\.]|(\d+)[\.\)])\s/.test(line)) {
+          const numMatch = line.match(/^(Step\s*\d+[:\.]|(\d+)[\.\)])\s*/);
+          const label = numMatch[0].trim();
+          const rest  = line.slice(numMatch[0].length);
+          return (
+            <div key={i} style={{ display:'flex', gap:10, marginBottom:6, alignItems:'flex-start',
+                background:'#f8f9ff', borderRadius:8, padding:'6px 10px', border:'1px solid #e8eaff' }}>
+              <span style={{ minWidth:56, fontWeight:800, color:'#6366f1', fontSize:13, flexShrink:0 }}>{label}</span>
+              <span style={{ flex:1 }}><InlineLine text={rest} /></span>
+            </div>
+          );
+        }
+
+        // Bullet "• " or "- "
+        if (line.startsWith('• ') || line.startsWith('- ')) {
+          return (
+            <div key={i} style={{ display:'flex', gap:8, marginBottom:4, alignItems:'flex-start' }}>
+              <span style={{ color:'#6366f1', fontWeight:700, flexShrink:0 }}>•</span>
+              <span><InlineLine text={line.slice(2)} /></span>
+            </div>
+          );
+        }
+
+        // "Answer:" highlight line
+        if (/^(∴|Therefore|Answer|Result|Hence)[:\s]/i.test(line)) {
+          return (
+            <div key={i} style={{ margin:'8px 0', padding:'8px 14px', background:'#dcfce7',
+                border:'1.5px solid #86efac', borderRadius:10, fontWeight:700, color:'#15803d', fontSize:14 }}>
+              <InlineLine text={line} />
+            </div>
+          );
+        }
+
+        return <p key={i} style={{ margin:'0 0 5px' }}><InlineLine text={line} /></p>;
       })}
     </div>
   );
@@ -619,6 +720,18 @@ export default function HomeworkHelperPage() {
                 )}
               </div>
             )}
+          </Card>
+        )}
+
+        {/* Further Reading */}
+        {answer.further_reading && answer.further_reading.length > 0 && (
+          <Card emoji="🔗" title="Further Reading & Resources" bg="#fefce8" border="#fde047">
+            {answer.further_reading.map((r, i) => (
+              <div key={i} style={{ display:'flex', gap:8, marginBottom:6, fontSize:13 }}>
+                <span style={{ color:'#ca8a04', flexShrink:0 }}>📖</span>
+                <span style={{ color:'#374151' }}><strong>{r.board || r.source}:</strong> {r.description}</span>
+              </div>
+            ))}
           </Card>
         )}
 
