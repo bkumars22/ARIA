@@ -228,7 +228,6 @@ function DocumentModal({ doc, onClose }) {
           {/* Action row */}
           <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
             <VoiceBtn speaking={speaking} onClick={handleSpeak} />
-            </button>
             <button onClick={handleDownloadPDF} style={m.secBtn}>
               ⬇️ Download PDF
             </button>
