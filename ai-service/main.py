@@ -75,28 +75,52 @@ def chat(system: str, user_parts, model: str = TEXT_MODEL, max_tokens: int = 200
 
 
 def _fix_json_strings(s: str) -> str:
-    """Escape literal newlines/tabs inside JSON string values (common LLM mistake)."""
+    """Fix two common LLM JSON mistakes inside string values:
+    1. Literal newlines/tabs → proper escape sequences
+    2. Invalid JSON escapes like \\( \\[ \\) \\] (LaTeX) → doubled \\\\( etc.
+    Valid JSON escape sequences: \" \\ \/ \b \f \n \r \t \uXXXX
+    """
     result = []
     in_string = False
-    escaped   = False
-    for ch in s:
-        if escaped:
+    i = 0
+    while i < len(s):
+        ch = s[i]
+        if not in_string:
             result.append(ch)
-            escaped = False
-        elif ch == '\\' and in_string:
-            result.append(ch)
-            escaped = True
-        elif ch == '"':
-            in_string = not in_string
-            result.append(ch)
-        elif in_string and ch == '\n':
-            result.append('\\n')
-        elif in_string and ch == '\r':
-            result.append('\\r')
-        elif in_string and ch == '\t':
-            result.append('\\t')
+            if ch == '"':
+                in_string = True
+            i += 1
         else:
-            result.append(ch)
+            if ch == '\\' and i + 1 < len(s):
+                nxt = s[i + 1]
+                if nxt in ('"', '\\', '/', 'b', 'f', 'n', 'r', 't'):
+                    # Valid JSON escape — pass through both chars
+                    result.append(ch); result.append(nxt)
+                    i += 2
+                elif nxt == 'u' and i + 5 < len(s):
+                    # Unicode escape \uXXXX — pass through
+                    result.append(ch); result.append(nxt)
+                    i += 2
+                else:
+                    # Invalid escape e.g. \( \[ \) \] \, \! — double the backslash
+                    result.append('\\\\')
+                    i += 1   # leave nxt to be processed next iteration
+            elif ch == '"':
+                in_string = False
+                result.append(ch)
+                i += 1
+            elif ch == '\n':
+                result.append('\\n')
+                i += 1
+            elif ch == '\r':
+                result.append('\\r')
+                i += 1
+            elif ch == '\t':
+                result.append('\\t')
+                i += 1
+            else:
+                result.append(ch)
+                i += 1
     return ''.join(result)
 
 
