@@ -74,21 +74,62 @@ def chat(system: str, user_parts, model: str = TEXT_MODEL, max_tokens: int = 200
     return resp.choices[0].message.content.strip()
 
 
+def _fix_json_strings(s: str) -> str:
+    """Escape literal newlines/tabs inside JSON string values (common LLM mistake)."""
+    result = []
+    in_string = False
+    escaped   = False
+    for ch in s:
+        if escaped:
+            result.append(ch)
+            escaped = False
+        elif ch == '\\' and in_string:
+            result.append(ch)
+            escaped = True
+        elif ch == '"':
+            in_string = not in_string
+            result.append(ch)
+        elif in_string and ch == '\n':
+            result.append('\\n')
+        elif in_string and ch == '\r':
+            result.append('\\r')
+        elif in_string and ch == '\t':
+            result.append('\\t')
+        else:
+            result.append(ch)
+    return ''.join(result)
+
+
 def parse_json(raw: str) -> dict:
-    """Extract and parse the first JSON object from a response string."""
-    # Strip markdown code fences (```json ... ``` or ``` ... ```)
+    """Robustly extract and parse JSON from an LLM response."""
+    # 1. Strip markdown code fences
     cleaned = re.sub(r'```(?:json)?\s*', '', raw).strip()
+
+    # 2. Direct parse
     try:
         return json.loads(cleaned)
     except Exception:
         pass
-    # Fallback: find the outermost { ... } block
+
+    # 3. Fix literal newlines inside strings, then retry
+    try:
+        return json.loads(_fix_json_strings(cleaned))
+    except Exception:
+        pass
+
+    # 4. Extract outermost { ... } block and try again
     m = re.search(r'\{[\s\S]+\}', cleaned)
     if m:
+        candidate = m.group()
         try:
-            return json.loads(m.group())
+            return json.loads(candidate)
         except Exception:
             pass
+        try:
+            return json.loads(_fix_json_strings(candidate))
+        except Exception:
+            pass
+
     return {}
 
 
