@@ -201,6 +201,229 @@ Social service project — contributions welcome!
 
 ---
 
+---
+
+## 📊 Diagrams
+
+### 1. System Architecture
+
+How the three services connect — browser calls both the Spring Boot backend (for data) and the FastAPI AI service (for real AI answers) directly.
+
+```mermaid
+graph TD
+    Browser["🌐 Browser\nGitHub Pages"]
+
+    subgraph Frontend ["Frontend — React 18 + Vite"]
+        Login["Login"]
+        Dashboard["Dashboard"]
+        Tutor["AI Tutor"]
+        Homework["Homework Helper"]
+        Documents["Document Teacher"]
+        Reports["Reports"]
+        Students["Students"]
+    end
+
+    subgraph Backend ["Backend — Spring Boot 3 · Java 17"]
+        AuthAPI["Auth API\n/api/auth/**"]
+        StudentAPI["Students API\n/api/students/**"]
+        SessionAPI["Sessions API\n/api/sessions/**"]
+        ProgressAPI["Progress API\n/api/progress/**"]
+        JWTFilter["JWT Filter\n(every request)"]
+    end
+
+    subgraph AIService ["AI Service — FastAPI · Python 3.11"]
+        TeachNode["/teach\nLangGraph Agent"]
+        DocNode["/document/explain\n/document/followup"]
+        HWNode["/homework/solve\n/homework/detect"]
+        ReportNode["/report\nParent Reports"]
+        GroqAPI["Groq API\nLlama-3.3-70b · Llama-3.2-90b vision"]
+    end
+
+    subgraph DB ["Database — PostgreSQL"]
+        DBUser[("ARIA_USER")]
+        DBStudent[("STUDENT")]
+        DBSession[("LEARNING_SESSION\nSESSION_MESSAGE")]
+        DBProgress[("STUDENT_PROGRESS\nCURRICULUM_MODULE")]
+        DBHomework[("HOMEWORK_SESSION\nHOMEWORK_FOLLOWUP")]
+    end
+
+    Browser --> Login
+    Login --> Dashboard
+    Dashboard --- Tutor
+    Dashboard --- Homework
+    Dashboard --- Documents
+    Dashboard --- Reports
+    Dashboard --- Students
+
+    Tutor --> TeachNode
+    Homework --> HWNode
+    Documents --> DocNode
+    Reports --> ReportNode
+    Students --> StudentAPI
+    Tutor --> SessionAPI
+
+    JWTFilter --> AuthAPI
+    JWTFilter --> StudentAPI
+    JWTFilter --> SessionAPI
+    JWTFilter --> ProgressAPI
+
+    AuthAPI --> DBUser
+    StudentAPI --> DBStudent
+    SessionAPI --> DBSession
+    ProgressAPI --> DBProgress
+    HWNode --> DBHomework
+
+    TeachNode --> GroqAPI
+    DocNode --> GroqAPI
+    HWNode --> GroqAPI
+    ReportNode --> GroqAPI
+```
+
+---
+
+### 2. AI Teaching Session — Step by Step
+
+What happens from the moment a student types a question to the moment ARIA speaks back.
+
+```mermaid
+sequenceDiagram
+    participant S  as 🎓 Student
+    participant FE as React Frontend
+    participant BE as Spring Boot
+    participant AI as FastAPI AI Service
+    participant G  as Groq LLM
+
+    S->>FE: Types or speaks a question
+    FE->>BE: POST /api/sessions/{id}/teach (JWT)
+    BE->>BE: Validate JWT token
+    BE->>AI: Forward to /teach
+
+    rect rgb(235, 245, 255)
+        note over AI: LangGraph — 6 nodes
+        AI->>AI: assess_level (detect grade)
+        AI->>AI: select_curriculum (pick module)
+        AI->>G:  Socratic teaching prompt
+        G-->>AI: Llama 3.3 response
+        AI->>AI: evaluate_response (score 0–100)
+        AI->>AI: adapt_or_advance (EASY/MEDIUM/HARD)
+        AI->>BE: log_progress (understanding score)
+    end
+
+    AI-->>FE: response + score + difficulty
+    FE-->>S: Display answer
+    FE-->>S: 🔊 Speak answer (TTS — 35 languages)
+```
+
+---
+
+### 3. Homework Helper — How It Works
+
+```mermaid
+flowchart TD
+    A([Student opens Homework Helper]) --> B{How to submit?}
+
+    B -->|Upload image| C["📷 Camera / file upload\nAuto-detect subject\nvia /homework/detect"]
+    B -->|Upload PDF| D["📄 PDF upload\nPyMuPDF extracts text\nAuto-detect subject"]
+    B -->|Type question| E["⌨️ Type question\nSelect subject manually"]
+
+    C --> F[Set grade · board · level · language]
+    D --> F
+    E --> F
+
+    F --> G[Click Solve]
+
+    G --> H{Document type?}
+    H -->|Image| I["Groq Vision\nLlama-3.2-90b-vision-preview\ntemperature = 0.1"]
+    H -->|PDF text| J["Groq Text\nLlama-3.3-70b-versatile\ntemperature = 0.1"]
+    H -->|Text only| J
+
+    I --> K[Parse structured JSON answer]
+    J --> K
+
+    K --> L["Display answer cards:\n💡 Concept  📝 Solution  ✅ Verification\n🔑 Key Points  🎯 Exam Tip  🏋️ Practice"]
+
+    L --> M{What next?}
+    M -->|Ask follow-up| G
+    M -->|Listen| N["🔊 Text-to-Speech\nGreen → Listen  Red pulsing → Stop"]
+    M -->|Finish| O([Session saved to Homework History])
+```
+
+---
+
+### 4. Role-Based Access Map
+
+```mermaid
+graph LR
+    subgraph Users
+        Admin["🛡️ Admin"]
+        Teacher["👨‍🏫 Teacher"]
+        Parent["👪 Parent"]
+    end
+
+    subgraph Pages
+        UserMgmt["User Management"]
+        StudentMgmt["Student Management"]
+        TutorPage["AI Tutor Chat"]
+        HWPage["Homework Helper"]
+        DocPage["Document Teacher"]
+        ReportsPage["Parent Reports"]
+        ProgressPage["Progress View"]
+        HistoryPage["Document History"]
+    end
+
+    Admin --> UserMgmt
+    Admin --> StudentMgmt
+    Admin --> ReportsPage
+    Admin --> ProgressPage
+
+    Teacher --> StudentMgmt
+    Teacher --> TutorPage
+    Teacher --> HWPage
+    Teacher --> DocPage
+    Teacher --> ReportsPage
+    Teacher --> HistoryPage
+
+    Parent --> ProgressPage
+    Parent --> ReportsPage
+```
+
+---
+
+### 5. Security Layers
+
+```mermaid
+flowchart TD
+    Req["Incoming HTTP Request"]
+
+    Req --> L1
+
+    subgraph L1 ["Layer 1 — JWT Validation"]
+        JWT{"Bearer token\nvalid & not expired?"}
+        JWT -->|No| R1["401 Unauthorized\nJSON error, no stack trace"]
+        JWT -->|Yes| L2
+    end
+
+    subgraph L2 ["Layer 2 — CORS"]
+        CORS{"Origin allowed?\nghub.io · onrender.com · localhost"}
+        CORS -->|Blocked| R2["403 CORS Rejected"]
+        CORS -->|Allowed| L3
+    end
+
+    subgraph L3 ["Layer 3 — Rate Limiting"]
+        Rate{"Under limit?\n15 req/min document\n20 req/min homework"}
+        Rate -->|Over| R3["429 Too Many Requests"]
+        Rate -->|Under| L4
+    end
+
+    subgraph L4 ["Layer 4 — Password Security"]
+        BCrypt["BCrypt cost-12 hashing\nAuto-logout 30 min idle\n5 failed attempts → 5 min lock"]
+    end
+
+    L4 --> Resp["✅ Secure Response\n+ Security Headers\n(X-Frame-Options DENY,\nX-Content-Type-Options)"]
+```
+
+---
+
 <div align="center">
 <h3>🧠 ARIA — Because every child deserves a great teacher</h3>
 <a href="https://bkumars22.github.io/ARIA/"><strong>▶ Open Live Demo</strong></a>
