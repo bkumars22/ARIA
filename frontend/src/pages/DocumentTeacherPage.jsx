@@ -3,6 +3,43 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { explainDocument } from '../services/api';
 
+// ─── Shared Voice Button ──────────────────────────────────────
+
+const VOICE_CSS = `
+@keyframes voicePulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.5); }
+  50%      { box-shadow: 0 0 0 8px rgba(220,38,38,0); }
+}
+.aria-voice-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 16px; border: none; border-radius: 22px;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: all 0.2s; font-family: inherit;
+}
+.aria-voice-btn.idle     { background: linear-gradient(135deg,#16a34a,#15803d); color:#fff; }
+.aria-voice-btn.idle:hover { opacity:.88; transform:scale(1.03); }
+.aria-voice-btn.speaking { background: linear-gradient(135deg,#dc2626,#b91c1c); color:#fff;
+  animation: voicePulse 1.2s ease-in-out infinite; }
+`;
+
+function VoiceBtn({ speaking, onClick, size = 'md' }) {
+  return (
+    <>
+      <style>{VOICE_CSS}</style>
+      <button
+        className={`aria-voice-btn ${speaking ? 'speaking' : 'idle'}`}
+        style={{ padding: size === 'sm' ? '6px 13px' : '8px 16px' }}
+        onClick={onClick}
+        title={speaking ? 'Stop speaking' : 'Listen'}
+      >
+        {speaking
+          ? <><span style={{ fontSize:15 }}>⏹</span> Stop</>
+          : <><span style={{ fontSize:15 }}>🔊</span> Listen</>}
+      </button>
+    </>
+  );
+}
+
 // ─── Constants ────────────────────────────────────────────────
 
 const LEVELS = [
@@ -618,10 +655,7 @@ export default function DocumentTeacherPage() {
 
         {/* Actions */}
         <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginBottom:16 }}>
-          <button onClick={handleSpeak}
-            style={speaking ? { ...s.actionBtn, background:'#fef3c7', color:'#92400e' } : s.actionBtn}>
-            {speaking ? '⏹ Stop' : '🔊 Listen'}
-          </button>
+          <VoiceBtn speaking={speaking} onClick={handleSpeak} />
           <button onClick={() => { setExplanation(null); setFile(null); setPreviewUrl(''); setActiveTab('upload'); }} style={s.actionBtn}>
             📄 New Document
           </button>

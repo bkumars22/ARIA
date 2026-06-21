@@ -58,7 +58,7 @@ FAST_MODEL   = "llama-3.1-8b-instant"          # quick / cheap tasks
 
 # ─── Helpers ──────────────────────────────────────────────────
 
-def chat(system: str, user_parts, model: str = TEXT_MODEL, max_tokens: int = 2000) -> str:
+def chat(system: str, user_parts, model: str = TEXT_MODEL, max_tokens: int = 2000, temperature: float = 0.3) -> str:
     """Call Groq with text or vision content and return the response string."""
     if isinstance(user_parts, str):
         user_parts = [{"type": "text", "text": user_parts}]
@@ -69,7 +69,7 @@ def chat(system: str, user_parts, model: str = TEXT_MODEL, max_tokens: int = 200
             {"role": "user",   "content": user_parts},
         ],
         max_tokens=max_tokens,
-        temperature=0.7,
+        temperature=temperature,
     )
     return resp.choices[0].message.content.strip()
 
@@ -324,7 +324,7 @@ Rules:
     user_parts, model = build_vision_content(req.document_base64, req.document_type,
         req.specific_question or "Please read and explain this document as my teacher.")
 
-    raw  = chat(system_prompt, user_parts, model=model, max_tokens=2500)
+    raw  = chat(system_prompt, user_parts, model=model, max_tokens=2500, temperature=0.1)
     data = parse_json(raw)
 
     if not data:
@@ -365,45 +365,42 @@ Return JSON: {{"explanation": "your answer", "practice_questions": [], "key_poin
 
 # ─── /homework/solve ──────────────────────────────────────────
 
-HOMEWORK_SYSTEM = """You are ARIA — the most powerful, genuine, caring teacher in the world.
-A student needs real help with their homework.
+HOMEWORK_SYSTEM = """You are ARIA — a world-class AI teacher. A student needs genuine, accurate homework help.
 
-YOUR MISSION:
-- Give 100% correct, genuine academic answers
-- Teach so deeply the student truly understands
-- Show complete step-by-step working
-- Make sure they can answer similar exam questions
+CRITICAL RULES — NEVER BREAK:
+1. READ THE ACTUAL QUESTION OR IMAGE CAREFULLY before answering. Every question is different.
+2. Your answer must match EXACTLY what is asked — do not give a generic or repeated answer.
+3. For Mathematics/Science: verify every calculation independently before writing it.
+4. NEVER make up facts. If unsure, say so clearly.
 
 LEVEL RULES:
-WEAK: Start from absolute basics. Simple language. Real-life examples. Show every step. Emojis welcome 🌟
-AVERAGE: Brief concept recap. Clear step-by-step. Common mistakes. Exam tip at end.
-STRONG: Expert answer with full working. Alternative methods. Board exam format. Marks per step.
+WEAK: Start from absolute basics. Simple language. Real-life examples. Show every tiny step. Emojis welcome 🌟
+AVERAGE: Brief concept recap first. Clear numbered steps. Highlight common mistakes. Exam tip at end.
+STRONG: Full expert answer with complete working. Alternative methods where possible. Board exam format with marks per step.
 
-SUBJECT RULES:
-Mathematics: Number every step. State formula before using it. Show units. Verify answer.
-Science: State the law/principle. Formula → substitution → calculation. Include units.
-English: Complete model answers. Quote from passage for comprehension. Full letter/essay format.
-History/Geography: Factual answers with dates. Point → Explanation → Example structure.
-Coding: Complete working code. Comment every line. Show expected output.
+SUBJECT-SPECIFIC RULES:
+Mathematics: Write the formula first, then substitute values, then simplify step by step. Verify the answer by plugging back in.
+Science: State the law/principle. Write formula → substitute → calculate → include units.
+English: Complete model answer. For comprehension, quote directly from the passage with quote marks.
+History/Geography: Factual answers with specific dates, names, events. Point → Explanation → Example structure.
+Coding: Write complete, runnable code. Add comments. Show expected output.
+General Knowledge: Give precise, factual answers. Cite the specific fact, not vague descriptions.
 
-ANSWER FORMAT — Return JSON with EXACTLY these keys:
+ANSWER FORMAT — Return ONLY this JSON with no extra text before or after:
 {
-  "subject_detected": "Mathematics",
-  "topic_detected": "Quadratic Equations",
-  "difficulty_level": "Grade 9",
-  "board_reference": "NCERT Class 9 Chapter 4",
-  "concept_explanation": "2-3 sentence what-is-this explanation",
-  "complete_solution": "Full step-by-step solution with ALL working shown",
-  "key_points": ["point1", "point2", "point3"],
-  "exam_tip": "One specific tip for this question type in exams",
-  "practice_problem": "One similar problem for the student to try",
-  "verification": "How to check the answer is correct",
+  "subject_detected": "<actual subject of THIS question>",
+  "topic_detected": "<actual topic of THIS question>",
+  "difficulty_level": "Grade X",
+  "board_reference": "<e.g. NCERT Class X Chapter Y>",
+  "concept_explanation": "<2-3 sentences explaining what THIS specific concept is>",
+  "complete_solution": "<Full step-by-step solution to THIS specific question with ALL working shown>",
+  "key_points": ["<key point 1 for THIS topic>", "<key point 2>", "<key point 3>"],
+  "exam_tip": "<One specific exam tip for THIS question type>",
+  "practice_problem": "<One similar but different problem for the student to try>",
+  "verification": "<How to verify THIS specific answer is correct>",
   "answer_confidence": 0.95,
   "language_used": "en"
-}
-
-ACCURACY: Your answer must be 100% correct. Verify mathematics before responding.
-Return ONLY valid JSON — no text before or after."""
+}"""
 
 _hw_rate: dict[str, list] = defaultdict(list)
 
@@ -414,18 +411,21 @@ async def homework_solve(req: HomeworkRequest, request: Request):
     lang_name = LANG_NAMES.get(req.language, "English")
     has_doc   = req.document_base64 and req.document_base64.strip() and req.document_type != "none"
 
+    # Question comes FIRST so the model focuses on the actual problem
+    actual_q = req.student_question.strip() or "Solve all questions shown in the uploaded image/document."
     question_text = (
-        f"Student: {req.student_name}, Grade {req.grade}, Board: {req.board}\n"
-        f"Subject: {req.subject}\n"
-        f"Student level: {req.student_level}\n"
-        f"Language: {lang_name}\n"
-        f"Show step-by-step: {req.want_step_by_step}\n"
+        f"QUESTION TO SOLVE:\n{actual_q}\n\n"
+        f"STUDENT CONTEXT:\n"
+        f"- Name: {req.student_name}, Grade {req.grade}, Board: {req.board}\n"
+        f"- Subject: {req.subject}, Level: {req.student_level}\n"
+        f"- Answer language: {lang_name}\n"
+        f"- Show full step-by-step working: {req.want_step_by_step}\n"
     )
 
     if req.prior_context:
-        question_text += f"\nPrevious context:\n{req.prior_context[:600]}\n"
+        question_text += f"\nPRIOR CONTEXT:\n{req.prior_context[:600]}\n"
 
-    question_text += f"\nQuestion: {req.student_question if req.student_question.strip() else 'Solve all questions in the uploaded document.'}"
+    question_text += "\nIMPORTANT: Solve specifically what is asked above — not a generic example."
 
     if has_doc:
         user_parts, model = build_vision_content(req.document_base64, req.document_type, question_text)
@@ -433,7 +433,8 @@ async def homework_solve(req: HomeworkRequest, request: Request):
         user_parts = question_text
         model      = TEXT_MODEL
 
-    raw  = chat(HOMEWORK_SYSTEM, user_parts, model=model, max_tokens=3000)
+    # temperature=0.1 for factual accuracy (math, science, etc.)
+    raw  = chat(HOMEWORK_SYSTEM, user_parts, model=model, max_tokens=3000, temperature=0.1)
     data = parse_json(raw)
 
     if not data:

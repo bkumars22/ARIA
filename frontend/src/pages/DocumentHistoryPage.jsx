@@ -47,6 +47,33 @@ function RenderText({ text }) {
 
 // ─── Document Detail Modal ────────────────────────────────────
 
+// ─── Voice Button ─────────────────────────────────────────────
+
+const VOICE_CSS = `
+@keyframes voicePulse {
+  0%,100% { box-shadow:0 0 0 0 rgba(220,38,38,0.5); }
+  50%      { box-shadow:0 0 0 8px rgba(220,38,38,0); }
+}
+.aria-voice-btn { display:inline-flex; align-items:center; gap:7px; padding:7px 15px;
+  border:none; border-radius:22px; font-size:13px; font-weight:700; cursor:pointer;
+  transition:all 0.2s; font-family:inherit; }
+.aria-voice-btn.idle { background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; }
+.aria-voice-btn.idle:hover { opacity:.88; transform:scale(1.03); }
+.aria-voice-btn.speaking { background:linear-gradient(135deg,#dc2626,#b91c1c); color:#fff;
+  animation:voicePulse 1.2s ease-in-out infinite; }
+`;
+
+function VoiceBtn({ speaking, onClick }) {
+  return (
+    <>
+      <style>{VOICE_CSS}</style>
+      <button className={`aria-voice-btn ${speaking ? 'speaking' : 'idle'}`} onClick={onClick}>
+        {speaking ? <><span style={{fontSize:15}}>⏹</span> Stop</> : <><span style={{fontSize:15}}>🔊</span> Listen</>}
+      </button>
+    </>
+  );
+}
+
 function DocumentModal({ doc, onClose }) {
   const [followup,   setFollowup]   = useState('');
   const [updating,   setUpdating]   = useState(false);
@@ -200,8 +227,7 @@ function DocumentModal({ doc, onClose }) {
 
           {/* Action row */}
           <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
-            <button onClick={handleSpeak} style={speaking ? m.activeBtn : m.secBtn}>
-              {speaking ? '⏹ Stop' : '🔊 Listen'}
+            <VoiceBtn speaking={speaking} onClick={handleSpeak} />
             </button>
             <button onClick={handleDownloadPDF} style={m.secBtn}>
               ⬇️ Download PDF

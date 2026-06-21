@@ -2,6 +2,31 @@ import { useState, useEffect, useRef } from 'react';
 import Sidebar from '../components/Sidebar';
 import { getStudents, getProgress, generateReport } from '../services/api';
 
+// ─── Voice Button ─────────────────────────────────────────────
+const VOICE_CSS = `
+@keyframes voicePulse {
+  0%,100% { box-shadow:0 0 0 0 rgba(220,38,38,0.5); }
+  50%      { box-shadow:0 0 0 8px rgba(220,38,38,0); }
+}
+.aria-voice-btn { display:inline-flex; align-items:center; gap:7px; padding:7px 16px;
+  border:none; border-radius:22px; font-size:13px; font-weight:700; cursor:pointer;
+  transition:all 0.2s; font-family:inherit; }
+.aria-voice-btn.idle { background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; }
+.aria-voice-btn.idle:hover { opacity:.88; transform:scale(1.03); }
+.aria-voice-btn.speaking { background:linear-gradient(135deg,#dc2626,#b91c1c); color:#fff;
+  animation:voicePulse 1.2s ease-in-out infinite; }
+`;
+function VoiceBtn({ speaking, onClick }) {
+  return (
+    <>
+      <style>{VOICE_CSS}</style>
+      <button className={`aria-voice-btn ${speaking ? 'speaking' : 'idle'}`} onClick={onClick}>
+        {speaking ? <><span style={{fontSize:15}}>⏹</span> Stop</> : <><span style={{fontSize:15}}>🔊</span> Read Aloud</>}
+      </button>
+    </>
+  );
+}
+
 export default function ReportsPage() {
   const [students,  setStudents]  = useState([]);
   const [selected,  setSelected]  = useState(null);
@@ -127,11 +152,7 @@ export default function ReportsPage() {
                 <div style={{ background:'#fff', borderRadius:14, boxShadow:'0 1px 6px rgba(0,0,0,0.06)', overflow:'hidden' }}>
                   <div style={{ padding:'14px 20px', borderBottom:'1px solid #f1f5f9', display:'flex', gap:8, alignItems:'center' }}>
                     <span style={{ flex:1, fontWeight:700, fontSize:15 }}>📄 Parent Report</span>
-                    <button onClick={readAloud}
-                      style={{ padding:'6px 14px', background: listening ? '#ef4444' : '#667eea', color:'#fff',
-                               border:'none', borderRadius:8, fontSize:12, cursor:'pointer', fontWeight:600 }}>
-                      {listening ? '⏹ Stop' : '🔊 Read Aloud'}
-                    </button>
+                    <VoiceBtn speaking={listening} onClick={readAloud} />
                     <button onClick={copyReport}
                       style={{ padding:'6px 14px', background:'#f1f5f9', color:'#374151', border:'none', borderRadius:8, fontSize:12, cursor:'pointer', fontWeight:600 }}>
                       📋 Copy

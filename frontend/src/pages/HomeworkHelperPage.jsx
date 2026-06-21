@@ -3,6 +3,57 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { solveHomework, detectSubject } from '../services/api';
 
+// ─── Shared Voice Button ──────────────────────────────────────
+
+const VOICE_CSS = `
+@keyframes voicePulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.5); }
+  50%      { box-shadow: 0 0 0 8px rgba(220,38,38,0); }
+}
+.aria-voice-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 22px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.aria-voice-btn.idle {
+  background: linear-gradient(135deg,#16a34a,#15803d);
+  color: #fff;
+}
+.aria-voice-btn.idle:hover { opacity: 0.88; transform: scale(1.03); }
+.aria-voice-btn.speaking {
+  background: linear-gradient(135deg,#dc2626,#b91c1c);
+  color: #fff;
+  animation: voicePulse 1.2s ease-in-out infinite;
+}
+`;
+
+function VoiceBtn({ speaking, onClick, size = 'md' }) {
+  const pad = size === 'sm' ? '6px 13px' : '8px 16px';
+  return (
+    <>
+      <style>{VOICE_CSS}</style>
+      <button
+        className={`aria-voice-btn ${speaking ? 'speaking' : 'idle'}`}
+        style={{ padding: pad }}
+        onClick={onClick}
+        title={speaking ? 'Stop speaking' : 'Listen to answer'}
+      >
+        {speaking
+          ? <><span style={{ fontSize:15 }}>⏹</span> Stop</>
+          : <><span style={{ fontSize:15 }}>🔊</span> Listen</>}
+      </button>
+    </>
+  );
+}
+
 // ─── Constants ────────────────────────────────────────────────
 
 const SUBJECTS = [
@@ -290,18 +341,22 @@ export default function HomeworkHelperPage() {
   };
 
   const handleSpeak = () => {
-    if (speaking) { window.speechSynthesis.cancel(); setSpeaking(false); return; }
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
     if (!answer?.complete_solution) return;
-    const text = [
-      answer.concept_explanation,
-      answer.complete_solution,
-    ].filter(Boolean).join('. ');
-    const u = new SpeechSynthesisUtterance(text.replace(/\*\*/g, ''));
+    const text = [answer.concept_explanation, answer.complete_solution]
+      .filter(Boolean).join('. ').replace(/\*\*/g, '');
+    const u      = new SpeechSynthesisUtterance(text);
     const voices = window.speechSynthesis.getVoices();
     const match  = voices.find(v => v.lang.startsWith(language));
     if (match) u.voice = match;
-    u.rate = 0.95;
+    u.rate  = 0.92;
+    u.pitch = 1.05;
     u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
     setSpeaking(true);
     window.speechSynthesis.speak(u);
   };
@@ -483,9 +538,7 @@ export default function HomeworkHelperPage() {
             )}
           </div>
           <div style={{ display:'flex', gap:8 }}>
-            <button onClick={handleSpeak} style={{ ...s.iconBtn, ...(speaking ? {background:'#fef3c7'} : {}) }} title="Listen">
-              {speaking ? '⏹' : '🔊'}
-            </button>
+            <VoiceBtn speaking={speaking} onClick={handleSpeak} />
             <button onClick={copyAnswer} style={s.iconBtn} title="Copy">📋</button>
             <button onClick={() => navigate('/homework-history')} style={s.iconBtn} title="History">📋 History</button>
           </div>
