@@ -91,16 +91,20 @@ def _fix_json_strings(s: str) -> str:
         else:
             if ch == '\\' and i + 1 < len(s):
                 nxt = s[i + 1]
-                if nxt in ('"', '\\', '/', 'b', 'f', 'n', 'r', 't'):
-                    # Valid JSON escape — pass through both chars
+                # Only treat as valid JSON escape if it's a non-ambiguous sequence.
+                # We intentionally exclude \b \f \t because in math content they are
+                # almost always LaTeX commands (\beta, \frac, \theta) not JSON control chars.
+                if nxt in ('"', '\\', '/', 'n', 'r'):
+                    # Unambiguously valid JSON escape — pass through
                     result.append(ch); result.append(nxt)
                     i += 2
-                elif nxt == 'u' and i + 5 < len(s):
-                    # Unicode escape \uXXXX — pass through
+                elif nxt == 'u' and i + 5 < len(s) and all(c in '0123456789abcdefABCDEF' for c in s[i+2:i+6]):
+                    # Valid Unicode escape \uXXXX — pass through
                     result.append(ch); result.append(nxt)
                     i += 2
                 else:
-                    # Invalid escape e.g. \( \[ \) \] \, \! — double the backslash
+                    # Invalid or ambiguous escape (\( \[ \frac \beta \theta etc.)
+                    # Double the backslash so json.loads accepts it
                     result.append('\\\\')
                     i += 1   # leave nxt to be processed next iteration
             elif ch == '"':
