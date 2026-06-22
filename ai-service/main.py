@@ -75,11 +75,9 @@ def chat(system: str, user_parts, model: str = TEXT_MODEL, max_tokens: int = 200
 
 
 def _fix_json_strings(s: str) -> str:
-    """Fix two common LLM JSON mistakes inside string values:
-    1. Literal newlines/tabs → proper escape sequences
-    2. Invalid JSON escapes like \\( \\[ \\) \\] (LaTeX) → doubled \\\\( etc.
-    Valid JSON escape sequences: \" \\ \/ \b \f \n \r \t \uXXXX
-    """
+    # Fix two common LLM JSON mistakes inside string values:
+    # 1. Literal newlines/tabs -> proper escape sequences
+    # 2. Invalid escapes like \( \[ (LaTeX) -> doubled \\ so json.loads accepts them
     result = []
     in_string = False
     i = 0
