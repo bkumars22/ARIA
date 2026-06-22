@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { explainDocument } from '../services/api';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 
 // ─── Shared Voice Button ──────────────────────────────────────
 
@@ -102,7 +104,48 @@ function stripBase64Header(dataUrl) {
   return dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
 }
 
-// ─── Markdown renderer ────────────────────────────────────────
+// ─── Math + Markdown renderer ─────────────────────────────────
+
+function renderMath(expr, display = false) {
+  try {
+    return katex.renderToString(expr.trim(), { throwOnError: false, displayMode: display, output: 'html', trust: false });
+  } catch { return expr; }
+}
+
+function parseMathSegments(text) {
+  const segments = [];
+  const RE = /(\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$[^\n$]+?\$)/g;
+  let last = 0, m;
+  while ((m = RE.exec(text)) !== null) {
+    if (m.index > last) segments.push({ type: 'text', content: text.slice(last, m.index) });
+    const raw = m[0];
+    const isDisplay = raw.startsWith('\\[') || raw.startsWith('$$');
+    const inner = raw.replace(/^\\\[|^\$\$|^\\\(|^\$/, '').replace(/\\\]$|\$\$$|\\\)$|\$$/, '');
+    segments.push({ type: 'math', content: inner, display: isDisplay });
+    last = m.index + raw.length;
+  }
+  if (last < text.length) segments.push({ type: 'text', content: text.slice(last) });
+  return segments;
+}
+
+function InlineLine({ text }) {
+  const segs = parseMathSegments(text);
+  return (
+    <>
+      {segs.map((seg, i) => {
+        if (seg.type === 'math')
+          return <span key={i} dangerouslySetInnerHTML={{ __html: renderMath(seg.content, seg.display) }} />;
+        return (
+          <span key={i}>
+            {seg.content.split(/(\*\*[^*]+\*\*)/g).map((p, j) =>
+              p.startsWith('**') && p.endsWith('**') ? <strong key={j}>{p.slice(2,-2)}</strong> : p
+            )}
+          </span>
+        );
+      })}
+    </>
+  );
+}
 
 function RenderExplanation({ text }) {
   if (!text) return null;
@@ -110,16 +153,13 @@ function RenderExplanation({ text }) {
     <div>
       {text.split('\n').map((line, i) => {
         if (!line.trim()) return <br key={i} />;
-        const bold = (s) => s.split(/(\*\*[^*]+\*\*)/g).map((p, j) =>
-          p.startsWith('**') && p.endsWith('**') ? <strong key={j}>{p.slice(2,-2)}</strong> : p
-        );
         if (line.startsWith('## ')) return <h3 key={i} style={{ margin:'14px 0 6px', color:'#1a1a2e', fontSize:15, fontWeight:700 }}>{line.slice(3)}</h3>;
         if (line.startsWith('# '))  return <h2 key={i} style={{ margin:'16px 0 8px', color:'#1a1a2e', fontSize:17, fontWeight:800 }}>{line.slice(2)}</h2>;
         if (line.startsWith('• ') || line.startsWith('- '))
-          return <div key={i} style={{ display:'flex', gap:8, marginBottom:4 }}><span>•</span><span>{bold(line.slice(2))}</span></div>;
+          return <div key={i} style={{ display:'flex', gap:8, marginBottom:4 }}><span>•</span><span><InlineLine text={line.slice(2)} /></span></div>;
         if (/^\d+\./.test(line))
-          return <div key={i} style={{ display:'flex', gap:8, marginBottom:4 }}><span style={{ minWidth:18 }}>{line.split('.')[0]}.</span><span>{bold(line.slice(line.indexOf('.')+1).trim())}</span></div>;
-        return <p key={i} style={{ margin:'0 0 6px', lineHeight:1.75 }}>{bold(line)}</p>;
+          return <div key={i} style={{ display:'flex', gap:8, marginBottom:4 }}><span style={{ minWidth:18 }}>{line.split('.')[0]}.</span><span><InlineLine text={line.slice(line.indexOf('.')+1).trim()} /></span></div>;
+        return <p key={i} style={{ margin:'0 0 6px', lineHeight:1.75 }}><InlineLine text={line} /></p>;
       })}
     </div>
   );
@@ -372,11 +412,19 @@ export default function DocumentTeacherPage() {
 
   // ── Explain ─────────────────────────────────────────────────
 
-  const handleExplain = async () => {
+  const slowTimerRef = useRef(null);
+
+  const handleExplain = async (levelOverride) => {
     if (!file) { setError('Please upload or capture a document first.'); return; }
+    const effectiveLevel = levelOverride || level;
     setLoading(true);
     setError('');
     setExplanation(null);
+
+    // Show cold-start warning after 8 seconds (Render.com free tier wake-up)
+    slowTimerRef.current = setTimeout(() => {
+      setError('The AI service is waking up — this only happens on first use and takes about 45 seconds. Please wait...');
+    }, 8000);
 
     try {
       let base64 = '';
@@ -390,22 +438,28 @@ export default function DocumentTeacherPage() {
       }
 
       const result = await explainDocument({
-        _file:             actualFile,           // actual File for multipart upload
-        document_base64:   base64,               // base64 for AI service direct / camera
+        _file:             actualFile,
+        document_base64:   base64,
         document_type:     fileType,
         student_name:      user.fullName || 'Student',
         grade:             parseInt(grade) || 5,
-        level,
+        level:             effectiveLevel,
         language,
         specific_question: question.trim() || undefined,
         board,
       });
 
+      setError('');
       setExplanation(result.data);
       setActiveTab('explanation');
     } catch (e) {
-      setError(e?.response?.data?.message || e.message || 'Could not get explanation. Please try again.');
+      if (e?.response?.status === 429) {
+        setError('The AI is handling too many requests right now. Please wait 1 minute and try again.');
+      } else {
+        setError(e?.response?.data?.message || e.message || 'Could not get explanation. Please try again.');
+      }
     } finally {
+      clearTimeout(slowTimerRef.current);
       setLoading(false);
     }
   };
@@ -423,8 +477,7 @@ export default function DocumentTeacherPage() {
 
   const handleReExplain = (newLevel) => {
     setLevel(newLevel);
-    // Use current state but override level
-    setTimeout(handleExplain, 50);
+    handleExplain(newLevel);
   };
 
   // ── Render helpers ──────────────────────────────────────────

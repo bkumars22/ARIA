@@ -285,7 +285,9 @@ export default function HomeworkHelperPage() {
   const [history,      setHistory]      = useState([]);       // conversation history
   const [followup,     setFollowup]     = useState('');
   const [fuLoading,    setFuLoading]    = useState(false);
+  const [fuError,      setFuError]      = useState('');
   const [detecting,    setDetecting]    = useState(false);
+  const slowTimerRef = useRef(null);
   const [detectedInfo, setDetectedInfo] = useState(null);
   const [practiceMode, setPracticeMode] = useState(false);
   const [practiceAns,  setPracticeAns]  = useState('');
@@ -348,9 +350,15 @@ export default function HomeworkHelperPage() {
     }
     setLoading(true);
     setError('');
+    setFuError('');
     setAnswer(null);
     setPracticeMode(false);
     setPracticeResult(null);
+
+    // Cold-start warning: Render.com free tier sleeps after 15 min idle
+    slowTimerRef.current = setTimeout(() => {
+      setLoadingMsg('Waking up the AI service... (first use takes ~45 seconds, please wait!)');
+    }, 9000);
 
     try {
       let base64 = '';
@@ -377,8 +385,13 @@ export default function HomeworkHelperPage() {
       // Scroll to answer
       setTimeout(() => answerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch (e) {
-      setError(e?.response?.data?.message || e.message || 'Could not get answer. Please try again.');
+      if (e?.response?.status === 429) {
+        setError('The AI is handling too many requests right now. Please wait 1 minute and try again.');
+      } else {
+        setError(e?.response?.data?.message || e.message || 'Could not get answer. Please try again.');
+      }
     } finally {
+      clearTimeout(slowTimerRef.current);
       setLoading(false);
     }
   };
@@ -388,37 +401,43 @@ export default function HomeworkHelperPage() {
   const handleFollowup = async () => {
     if (!followup.trim() || !answer) return;
     setFuLoading(true);
+    setFuError('');
     try {
-      const sessionId = answer?.sessionId;
-      let res;
-      if (sessionId) {
-        res = await fetch(`/api/homework/${sessionId}/followup`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionStorage.getItem('aria_token')}` },
-          body: JSON.stringify({ question: followup }),
-        }).then(r => r.json());
-      } else {
-        // Demo: use solveHomework
-        res = await solveHomework({
-          document_base64:  '',
-          document_type:    'none',
-          student_question: followup,
-          student_name:     user.fullName || 'Student',
-          grade:            parseInt(user.grade) || 5,
-          board:            user.board || 'CBSE',
-          subject, language,
-          student_level:    level,
-          want_full_answer: true,
-          want_step_by_step: true,
-        });
-      }
+      // Build context from the previous answer so the AI can answer contextually
+      const priorCtx = [
+        answer.topic_detected ? `Topic: ${answer.topic_detected}` : '',
+        answer.concept_explanation ? `Concept: ${answer.concept_explanation.slice(0, 300)}` : '',
+        answer.complete_solution ? `Solution summary: ${answer.complete_solution.slice(0, 300)}` : '',
+      ].filter(Boolean).join('\n');
+
+      const res = await solveHomework({
+        document_base64:   '',
+        document_type:     'none',
+        student_question:  followup,
+        prior_context:     priorCtx,
+        student_name:      user.fullName || 'Student',
+        grade:             parseInt(user.grade) || 5,
+        board:             user.board || 'CBSE',
+        subject, language,
+        student_level:     level,
+        want_full_answer:  true,
+        want_step_by_step: true,
+      });
+
       const fuAnswer = res?.data || res;
       setHistory(prev => [...prev, { question: followup, answer: fuAnswer }]);
       setAnswer(fuAnswer);
       setFollowup('');
       setTimeout(() => answerRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }), 100);
-    } catch { /* silent */ }
-    finally { setFuLoading(false); }
+    } catch (e) {
+      if (e?.response?.status === 429) {
+        setFuError('AI is busy — please wait 1 minute and try again.');
+      } else {
+        setFuError('Could not get follow-up answer. Please try again.');
+      }
+    } finally {
+      setFuLoading(false);
+    }
   };
 
   // ── Practice problem verification ────────────────────────
@@ -752,6 +771,7 @@ export default function HomeworkHelperPage() {
               {fuLoading ? '⏳' : '→'}
             </button>
           </div>
+          {fuError && <div style={{ marginTop:8, color:'#dc2626', fontSize:13 }}>⚠️ {fuError}</div>}
         </div>
 
         {/* Conversation history */}

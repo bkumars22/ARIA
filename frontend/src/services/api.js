@@ -673,6 +673,7 @@ export async function solveHomework(payload) {
       student_level:     payload.student_level || 'AVERAGE',
       want_full_answer:  payload.want_full_answer !== false,
       want_step_by_step: payload.want_step_by_step !== false,
+      prior_context:     payload.prior_context || null,
     });
     return { data: res.data };
   }
