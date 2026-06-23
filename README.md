@@ -201,6 +201,330 @@ MIT License — free to use, modify, and distribute.
 
 ---
 
+## Playwright E2E Testing
+
+ARIA ships with a full Playwright test suite covering all roles, all API endpoints, and all AI interactions.
+
+### Test Suite Overview
+
+| File | Modules | Tests | Coverage |
+|------|---------|-------|----------|
+| `tests/aria.spec.ts` | 1 to 10 | 60 | Auth, Students, Sessions, AI Engine, Curriculum, Progress, Language, Security, Parent, System |
+| `tests/document-teacher.spec.ts` | 11 to 13 | 15 | Document Upload UI, AI Explanation API, Document History |
+| Total | 13 modules | 75 | All roles and all pages |
+
+### Environment Variables
+
+| Variable | Default | Override for |
+|----------|---------|--------------|
+| `BASE_URL` | `http://localhost:3001` | Frontend URL |
+| `API_URL` | `http://localhost:8089/aria` | Spring Boot backend |
+| `AI_URL` | `http://localhost:8001` | FastAPI AI service |
+
+### Option 1 — Run against GitHub Pages (no local setup)
+
+Run the UI tests against the live demo:
+
+```bash
+cd tests
+npm install
+npx playwright install chromium
+BASE_URL=https://bkumars22.github.io/ARIA npm test
+```
+
+API and AI tests are skipped automatically when the backend is unreachable.
+
+### Option 2 — Run against local full stack
+
+Start all services first (see Run Locally — Option 2), then:
+
+```bash
+cd tests
+npm install
+npx playwright install chromium
+npm test
+# Or with a browser window visible:
+npm run test:headed
+```
+
+### Option 3 — Run in Docker
+
+```bash
+cd tests
+docker build -t aria-tests .
+docker run --network host \
+  -e BASE_URL=http://localhost:3001 \
+  -e API_URL=http://localhost:8089/aria \
+  -e AI_URL=http://localhost:8001 \
+  aria-tests
+```
+
+### View HTML Test Report
+
+```bash
+cd tests
+npm run test:report
+```
+
+### Run a single module
+
+```bash
+# Module 1 — Authentication only
+npx playwright test --grep "1\. Authentication"
+
+# Module 8 — Security only
+npx playwright test --grep "8\. Security"
+
+# Document Teacher tests only
+npx playwright test document-teacher.spec.ts
+```
+
+---
+
+## MCP Server Integration
+
+ARIA is designed to work with AI agent toolchains using the Model Context Protocol (MCP). Five MCP servers can be connected to give AI agents direct access to the browser, codebase, GitHub, Jira, and Slack.
+
+These are the same servers that the QAIP platform (https://bkumars22.github.io/QA-Intelligent-Platform) tracks under the MCP Status tab.
+
+### MCP Server Reference
+
+| Server | What it gives the AI agent | Port / Transport |
+|--------|---------------------------|-----------------|
+| PLAYWRIGHT | Control a real browser — navigate, click, screenshot ARIA pages | stdio |
+| GITHUB | Read commits, open PRs, list issues in the ARIA repo | stdio |
+| FILESYSTEM | Read and write local source files (frontend, backend, ai-service) | stdio |
+| JIRA | Read and create Jira tickets for bugs found during testing | stdio |
+| SLACK | Post test result summaries to a Slack channel | stdio |
+
+---
+
+### 1. Playwright MCP Server
+
+Lets an AI agent (Claude, etc.) open a real browser, navigate ARIA, click buttons, fill forms, and take screenshots — without writing a Playwright script manually.
+
+**Install:**
+
+```bash
+npm install -g @playwright/mcp
+```
+
+**Add to Claude Code MCP config** (`~/.claude/mcp_config.json` or in Claude Desktop settings):
+
+```json
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest", "--browser", "chromium"],
+      "env": {}
+    }
+  }
+}
+```
+
+**Verify connection:**
+
+```bash
+npx @playwright/mcp@latest --version
+```
+
+**What the AI agent can do once connected:**
+
+- Navigate to `https://bkumars22.github.io/ARIA/`
+- Login as teacher, admin, or parent
+- Walk through every page and report what it sees
+- Take screenshots on failures
+- Run exploratory testing without pre-written scripts
+
+---
+
+### 2. GitHub MCP Server
+
+Lets an AI agent read ARIA's commit history, open issues, create PRs, and check GitHub Actions workflow status.
+
+**Install:**
+
+```bash
+npm install -g @modelcontextprotocol/server-github
+```
+
+**Add to MCP config:**
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_your_token_here"
+      }
+    }
+  }
+}
+```
+
+**GitHub token scopes needed:**
+
+- `repo` — read repository content and PRs
+- `workflow` — read Actions status
+
+**Get a token:** GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens
+
+---
+
+### 3. Filesystem MCP Server
+
+Lets an AI agent read and write files in the ARIA project directory on your local machine. Required for AI-assisted code generation and test writing.
+
+**Install:**
+
+```bash
+npm install -g @modelcontextprotocol/server-filesystem
+```
+
+**Add to MCP config:**
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "D:/KumarFolder/mydocs/ARIA"
+      ],
+      "env": {}
+    }
+  }
+}
+```
+
+Replace the path with your actual ARIA clone directory.
+
+**What the AI agent can do once connected:**
+
+- Read `frontend/src/` to understand page structure before generating tests
+- Read `tests/aria.spec.ts` to extend the test suite
+- Write new spec files directly to `tests/`
+- Read `backend/src/` to understand API contracts
+
+---
+
+### 4. Jira MCP Server
+
+Lets an AI agent read Jira tickets (for test requirements) and create bug tickets when Playwright tests fail.
+
+**Install:**
+
+```bash
+npm install -g @modelcontextprotocol/server-jira
+```
+
+**Add to MCP config:**
+
+```json
+{
+  "mcpServers": {
+    "jira": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-jira"],
+      "env": {
+        "JIRA_URL": "https://your-org.atlassian.net",
+        "JIRA_EMAIL": "your-email@example.com",
+        "JIRA_API_TOKEN": "your_jira_api_token"
+      }
+    }
+  }
+}
+```
+
+**Get a Jira API token:** Atlassian Account → Security → Create and manage API tokens
+
+---
+
+### 5. Slack MCP Server
+
+Lets an AI agent post test run summaries to a Slack channel after Playwright execution finishes.
+
+**Install:**
+
+```bash
+npm install -g @modelcontextprotocol/server-slack
+```
+
+**Add to MCP config:**
+
+```json
+{
+  "mcpServers": {
+    "slack": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-slack"],
+      "env": {
+        "SLACK_BOT_TOKEN": "xoxb-your-bot-token",
+        "SLACK_TEAM_ID": "T0XXXXXXXXX"
+      }
+    }
+  }
+}
+```
+
+**Create a Slack bot:** api.slack.com → Your Apps → Create New App → Add `chat:write` scope → Install to workspace
+
+---
+
+### Full MCP Config (all 5 servers together)
+
+Save this as `~/.claude/mcp_config.json` or add inside Claude Desktop settings:
+
+```json
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest", "--browser", "chromium"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_your_token"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/ARIA"]
+    },
+    "jira": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-jira"],
+      "env": {
+        "JIRA_URL": "https://your-org.atlassian.net",
+        "JIRA_EMAIL": "you@example.com",
+        "JIRA_API_TOKEN": "your_token"
+      }
+    },
+    "slack": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-slack"],
+      "env": {
+        "SLACK_BOT_TOKEN": "xoxb-your-bot-token",
+        "SLACK_TEAM_ID": "T0XXXXXXXXX"
+      }
+    }
+  }
+}
+```
+
+### How QAIP tracks MCP status
+
+The QAIP platform (QA Intelligent Platform) shows live connection status for each of these MCP servers under the MCP Status tab on each project page. ARIA is registered as a project in QAIP at `https://bkumars22.github.io/QA-Intelligent-Platform`. Login with `admin / admin` to see the MCP dashboard.
+
+---
+
 ## Diagrams
 
 ### 1. System Architecture
