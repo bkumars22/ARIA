@@ -56,6 +56,7 @@ class TeachingState(TypedDict):
     input_type:           str
     detected_level:       Optional[int]
     selected_module:      Optional[dict]
+    rag_context:          Optional[str]   # textbook + prior Q&A context from ChromaDB
     aria_response:        Optional[str]
     is_correct:           Optional[bool]
     understanding_score:  float
@@ -79,13 +80,14 @@ TEACHING RULES (never break these):
 8. Use real-world examples the child knows: food, games, family, nature.
 9. End every response with ONE guiding question to keep the child thinking.
 10. If the child seems frustrated (repeats wrong answer), simplify immediately.
+11. If TEXTBOOK CONTENT is provided below, ground your explanation in it — use its examples and terminology.
 
 CURRENT CONTEXT:
 - Student: {student_name}, Grade {grade}
 - Subject: {subject}, Topic: {topic}
 - Difficulty: {difficulty}
 - Understanding score so far: {understanding_score}/100
-
+{rag_section}
 Remember: You are the most patient, encouraging teacher this child may ever have."""
 
 
@@ -127,8 +129,29 @@ def select_curriculum(state: TeachingState) -> TeachingState:
     return state
 
 
+# ─── Node 2.5: Retrieve Context (RAG) ────────────────────────
+def retrieve_context(state: TeachingState) -> TeachingState:
+    """Pull relevant textbook chunks and prior Q&A from ChromaDB."""
+    student_id = state.get("student_id", "")
+    question = state.get("student_input", "")
+    if not student_id or not question:
+        state["rag_context"] = ""
+        return state
+
+    try:
+        from rag.retriever import retrieve_for_question, format_student_context
+        hits = retrieve_for_question(student_id=student_id, question=question, top_k=3)
+        state["rag_context"] = format_student_context(hits, question=question)
+    except Exception:
+        state["rag_context"] = ""
+    return state
+
+
 # ─── Node 3: Teach Socratically ───────────────────────────────
 def teach_socratically(state: TeachingState) -> TeachingState:
+    rag_ctx = state.get("rag_context") or ""
+    rag_section = f"\nTEXTBOOK CONTENT FOR THIS LESSON:\n{rag_ctx}\n" if rag_ctx else ""
+
     system = SOCRATIC_SYSTEM_PROMPT.format(
         grade=state['grade'],
         language=state['language'],
@@ -136,12 +159,26 @@ def teach_socratically(state: TeachingState) -> TeachingState:
         subject=state.get('subject', 'General'),
         topic=state.get('topic', 'General'),
         difficulty=state.get('difficulty', 'MEDIUM'),
-        understanding_score=state['understanding_score']
+        understanding_score=state['understanding_score'],
+        rag_section=rag_section,
     )
     messages = state['conversation_history'] + [{"role": "user", "content": state['student_input']}]
     state['aria_response'] = groq_chat(system, messages, max_tokens=300)
     state['conversation_history'].append({"role": "user",      "content": state['student_input']})
     state['conversation_history'].append({"role": "assistant", "content": state['aria_response']})
+
+    # Auto-store this Q&A turn in the student's learning memory
+    try:
+        from rag.chroma_store import save_qa_turn
+        save_qa_turn(
+            student_id=state.get("student_id", ""),
+            question=state["student_input"],
+            answer=state["aria_response"],
+            subject=state.get("subject", ""),
+            language=state.get("language", "English"),
+        )
+    except Exception:
+        pass
     return state
 
 
@@ -199,6 +236,7 @@ def log_progress(state: TeachingState) -> TeachingState:
 workflow = StateGraph(TeachingState)
 workflow.add_node("assess_level",      assess_level)
 workflow.add_node("select_curriculum", select_curriculum)
+workflow.add_node("retrieve_context",  retrieve_context)
 workflow.add_node("teach_socratically",teach_socratically)
 workflow.add_node("evaluate_response", evaluate_response)
 workflow.add_node("adapt_or_advance",  adapt_or_advance)
@@ -206,7 +244,8 @@ workflow.add_node("log_progress",      log_progress)
 
 workflow.set_entry_point("assess_level")
 workflow.add_edge("assess_level",       "select_curriculum")
-workflow.add_edge("select_curriculum",  "teach_socratically")
+workflow.add_edge("select_curriculum",  "retrieve_context")
+workflow.add_edge("retrieve_context",   "teach_socratically")
 workflow.add_edge("teach_socratically", "evaluate_response")
 workflow.add_edge("evaluate_response",  "adapt_or_advance")
 workflow.add_edge("adapt_or_advance",   "log_progress")
@@ -222,7 +261,7 @@ def run_teaching_turn(student_id, session_id, student_name, grade, language,
         student_id=student_id, session_id=session_id, student_name=student_name,
         grade=grade, language=language, subject=subject, topic=topic,
         student_input=student_input, input_type="TEXT", detected_level=grade,
-        selected_module=None, aria_response=None, is_correct=None,
+        selected_module=None, rag_context=None, aria_response=None, is_correct=None,
         understanding_score=understanding_score, difficulty=difficulty,
         conversation_history=conversation_history or [],
         should_simplify=False, should_advance=False, log_entry=None

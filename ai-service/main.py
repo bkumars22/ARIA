@@ -579,6 +579,148 @@ question_type: CALCULATION|THEORY|MCQ|FILL_BLANK|SHORT_ANSWER|LONG_ANSWER|DIAGRA
     return data if data else {"subject": "General", "estimated_grade": 5}
 
 
+# ─── RAG endpoints ───────────────────────────────────────────
+
+class DocumentIngestRequest(BaseModel):
+    student_id: str
+    text: str
+    source_id: str
+    source_type: str = "textbook"
+    metadata: dict = {}
+
+
+class StudentQueryRequest(BaseModel):
+    student_id: str
+    question: str
+    top_k: int = 4
+
+
+class MemoryStoreRequest(BaseModel):
+    student_id: str
+    question: str
+    answer: str
+    subject: str = ""
+    language: str = "English"
+
+
+def _extract_pdf_text(pdf_bytes: bytes) -> str:
+    """Extract plain text from PDF bytes using PyMuPDF."""
+    try:
+        import fitz
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        pages_text = []
+        for page in doc:
+            text = page.get_text()
+            if text.strip():
+                pages_text.append(text)
+        doc.close()
+        return "\n".join(pages_text)
+    except ImportError:
+        return ""
+    except Exception:
+        return ""
+
+
+@app.post("/document/ingest")
+async def document_ingest(payload: DocumentIngestRequest):
+    """Ingest plain text into a student's ChromaDB collection."""
+    try:
+        from rag.chroma_store import ingest_document
+        chunks = ingest_document(
+            student_id=payload.student_id,
+            text=payload.text,
+            source_id=payload.source_id,
+            source_type=payload.source_type,
+            metadata=payload.metadata,
+        )
+        return {"status": "ok", "chunks_stored": chunks}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+from fastapi import UploadFile, File, Form as FormField
+
+
+@app.post("/document/ingest-pdf")
+async def document_ingest_pdf(
+    file: UploadFile = File(...),
+    student_id: str = FormField(...),
+    subject: str = FormField(default="General"),
+    grade: int = FormField(default=8),
+    language: str = FormField(default="English"),
+):
+    """Upload a PDF textbook page; text is extracted and stored in ChromaDB."""
+    pdf_bytes = await file.read()
+    text = _extract_pdf_text(pdf_bytes)
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="No text found in PDF")
+
+    try:
+        from rag.chroma_store import ingest_document
+        chunks = ingest_document(
+            student_id=student_id,
+            text=text,
+            source_id=file.filename or "uploaded_pdf",
+            source_type="textbook",
+            metadata={"subject": subject, "grade": grade, "language": language, "filename": file.filename},
+        )
+        return {
+            "status": "ok",
+            "chunks_stored": chunks,
+            "subject": subject,
+            "grade": grade,
+            "message": f"Ready to answer questions about your {subject} textbook",
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/student/memory/save")
+async def memory_save(payload: MemoryStoreRequest):
+    """Store a Q&A turn in the student's learning memory."""
+    try:
+        from rag.chroma_store import save_qa_turn
+        ok = save_qa_turn(
+            student_id=payload.student_id,
+            question=payload.question,
+            answer=payload.answer,
+            subject=payload.subject,
+            language=payload.language,
+        )
+        return {"status": "ok" if ok else "failed"}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/student/memory/retrieve")
+async def memory_retrieve(payload: StudentQueryRequest):
+    """Retrieve relevant chunks from the student's learning memory."""
+    try:
+        from rag.retriever import retrieve_for_question, format_student_context
+        hits = retrieve_for_question(
+            student_id=payload.student_id,
+            question=payload.question,
+            top_k=payload.top_k,
+        )
+        return {
+            "results": hits,
+            "context": format_student_context(hits, question=payload.question),
+            "count": len(hits),
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.get("/student/{student_id}/sources")
+async def student_sources(student_id: str):
+    """List all documents a student has uploaded."""
+    try:
+        from rag.chroma_store import list_sources
+        return {"sources": list_sources(student_id)}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 # ─── /health ─────────────────────────────────────────────────
 
 @app.get("/health")
@@ -588,6 +730,7 @@ async def health():
         "service": "ARIA AI Service",
         "version": "2.0.0",
         "engine":  "Groq + Llama 3.3 (free)",
+        "rag":     "ChromaDB + sentence-transformers",
         "models": {
             "text":   TEXT_MODEL,
             "vision": VISION_MODEL,
