@@ -85,38 +85,38 @@ Answer stored as Q&A memory for next session
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    ARIA System                          │
-│                                                         │
-│  React + Vite Frontend ──► Spring Boot Backend          │
-│     (GitHub Pages)            (Railway)                 │
-│                                  │                      │
-│                         PostgreSQL (Railway)            │
-│                                  │                      │
-│                         Python AI Engine                │
-│                     FastAPI + LangGraph 6-node          │
-│                                  │                      │
-│              ┌───────────────────┼────────────┐         │
-│         Groq API           ChromaDB RAG   Anthropic     │
-│    (Llama-3.3-70b-versatile)  (per-student)  (Claude)  │
-└─────────────────────────────────────────────────────────┘
+
+                    ARIA System                          
+                                                         
+  React + Vite Frontend  Spring Boot Backend          
+     (GitHub Pages)            (Railway)                 
+                                                        
+                         PostgreSQL (Railway)            
+                                                        
+                         Python AI Engine                
+                     FastAPI + LangGraph 6-node          
+                                                        
+                       
+         Groq API           ChromaDB RAG   Anthropic     
+    (Llama-3.3-70b-versatile)  (per-student)  (Claude)  
+
 ```
 
 ### LangGraph Teaching Pipeline (7 nodes)
 
 ```
 assess_level        ← detects grade and confusion signals
-     │
+     
 select_curriculum   ← fetches EASY/MEDIUM/HARD module from backend
-     │
+     
 retrieve_context    ← NEW: ChromaDB RAG — textbook chunks + prior Q&A
-     │
+     
 teach_socratically  ← Groq Llama with textbook context injected
-     │
+     
 evaluate_response   ← scores student understanding 0–100
-     │
+     
 adapt_or_advance    ← simplify or move to next difficulty
-     │
+     
 log_progress        ← saves to backend + stores Q&A in RAG memory
 ```
 
