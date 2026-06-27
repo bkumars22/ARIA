@@ -15,6 +15,10 @@ from pydantic import BaseModel
 from groq import Groq
 
 from agents.teaching_agent import run_teaching_turn
+from model_router import get_router
+from cost_tracker import record as track_cost, dashboard as cost_dashboard
+
+_router = get_router("ARIA")
 
 # ─── App setup ────────────────────────────────────────────────
 
@@ -58,10 +62,26 @@ FAST_MODEL   = "llama-3.1-8b-instant"          # quick / cheap tasks
 
 # ─── Helpers ──────────────────────────────────────────────────
 
-def chat(system: str, user_parts, model: str = TEXT_MODEL, max_tokens: int = 2000, temperature: float = 0.3) -> str:
-    """Call Groq with text or vision content and return the response string."""
+def chat(
+    system: str,
+    user_parts,
+    model: str = TEXT_MODEL,
+    max_tokens: int = 2000,
+    temperature: float = 0.3,
+    task_type: str = "auto",
+) -> str:
+    """Call Groq with text or vision content, model routing, and cost tracking."""
     if isinstance(user_parts, str):
         user_parts = [{"type": "text", "text": user_parts}]
+
+    # Use ModelRouter to select optimal model unless caller forces a specific one
+    has_image = any(p.get("type") == "image_url" for p in user_parts if isinstance(p, dict))
+    if model in (TEXT_MODEL, FAST_MODEL):   # only auto-route for non-forced calls
+        prompt_text = " ".join(p.get("text", "") for p in user_parts if isinstance(p, dict) and p.get("type") == "text")
+        decision = _router.route(task_type=task_type, prompt=prompt_text, has_image=has_image)
+        model = decision.model_spec.model_id
+
+    t0 = time.time()
     resp = client.chat.completions.create(
         model=model,
         messages=[
@@ -70,6 +90,17 @@ def chat(system: str, user_parts, model: str = TEXT_MODEL, max_tokens: int = 200
         ],
         max_tokens=max_tokens,
         temperature=temperature,
+    )
+    latency_ms = int((time.time() - t0) * 1000)
+
+    usage = resp.usage
+    track_cost(
+        project="ARIA",
+        task_type=task_type,
+        model_id=model,
+        prompt_tokens=usage.prompt_tokens if usage else 0,
+        completion_tokens=usage.completion_tokens if usage else 0,
+        latency_ms=latency_ms,
     )
     return resp.choices[0].message.content.strip()
 
