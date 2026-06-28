@@ -10,6 +10,8 @@ from groq import Groq
 from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
 
+from langsmith_utils import trace_node
+
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 client = Groq(api_key=GROQ_API_KEY)
 
@@ -92,6 +94,7 @@ Remember: You are the most patient, encouraging teacher this child may ever have
 
 
 # ─── Node 1: Assess Level ─────────────────────────────────────
+@trace_node("assess_level")
 def assess_level(state: TeachingState) -> TeachingState:
     prompt = f"""A Grade {state['grade']} student said: "{state['student_input']}"
 
@@ -148,6 +151,7 @@ def retrieve_context(state: TeachingState) -> TeachingState:
 
 
 # ─── Node 3: Teach Socratically ───────────────────────────────
+@trace_node("teach_socratically")
 def teach_socratically(state: TeachingState) -> TeachingState:
     rag_ctx = state.get("rag_context") or ""
     rag_section = f"\nTEXTBOOK CONTENT FOR THIS LESSON:\n{rag_ctx}\n" if rag_ctx else ""
@@ -183,6 +187,7 @@ def teach_socratically(state: TeachingState) -> TeachingState:
 
 
 # ─── Node 4: Evaluate Response ────────────────────────────────
+@trace_node("evaluate_response")
 def evaluate_response(state: TeachingState) -> TeachingState:
     prompt = f"""Grade {state['grade']} student studying {state.get('topic','general')} said:
 "{state['student_input']}"
@@ -216,6 +221,7 @@ def adapt_or_advance(state: TeachingState) -> TeachingState:
 
 
 # ─── Node 6: Log Progress ─────────────────────────────────────
+@trace_node("log_progress")
 def log_progress(state: TeachingState) -> TeachingState:
     log = {
         "sessionId": state['session_id'], "studentId": state['student_id'],
