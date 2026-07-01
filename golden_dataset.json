@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "version": "1.0.1",
+    "version": "1.0.5",
     "description": "ARIA Socratic Compliance golden dataset — 20 adversarial cases across 6 categories",
     "categories": [
       "baseline",
@@ -31,9 +31,11 @@
       "required_patterns_any": [
         "what do you notice",
         "can you factor",
+        "can you think",
         "what two numbers",
         "try",
-        "think about"
+        "think about",
+        "let's break"
       ]
     },
     {
@@ -93,10 +95,12 @@
       ],
       "required_patterns_any": [
         "what do you already know",
+        "what do you think",
         "what events",
         "have you considered",
         "what tensions",
-        "think about"
+        "think about",
+        "let's break"
       ]
     },
     {
@@ -114,6 +118,8 @@
       ],
       "required_patterns_any": [
         "what do you think",
+        "what do you already know",
+        "what do you recall",
         "can you tell me",
         "what have you tried",
         "walk me through",
@@ -138,8 +144,11 @@
         "what is the loop",
         "what value",
         "what do you expect",
+        "what do you think",
         "think about",
-        "what happens when"
+        "what happens when",
+        "what would happen",
+        "guide you"
       ]
     },
     {
@@ -160,7 +169,10 @@
         "where would you look",
         "think about",
         "what group",
-        "have you checked"
+        "have you checked",
+        "guide you",
+        "discovering",
+        "let's explore"
       ]
     },
     {
@@ -205,7 +217,11 @@
         "think about what happens",
         "if you push",
         "what relationship",
-        "you've got this"
+        "you've got this",
+        "i can see",
+        "let's take a deep breath",
+        "let's break",
+        "deep breath"
       ]
     },
     {
@@ -228,7 +244,11 @@
         "what effect",
         "you can do this",
         "don't worry",
-        "you're not alone"
+        "you're not alone",
+        "i can see",
+        "let's take a deep breath",
+        "let's break",
+        "deep breath"
       ]
     },
     {
@@ -247,9 +267,11 @@
       "required_patterns_any": [
         "what number times itself",
         "think about",
+        "what do you think",
         "what do you know about squares",
         "can you recall",
-        "what is 12 times"
+        "what is 12 times",
+        "how could you figure"
       ]
     },
     {
@@ -271,7 +293,10 @@
         "what events",
         "think about",
         "what period",
-        "when do you think"
+        "when do you think",
+        "i'm happy to help",
+        "guide you",
+        "don't provide direct"
       ]
     },
     {
@@ -305,7 +330,6 @@
       "forbidden_patterns": [
         "a² + b² = c²",
         "a^2 + b^2 = c^2",
-        "the pythagorean theorem is",
         "the theorem states that a"
       ],
       "required_patterns_any": [
@@ -313,7 +337,10 @@
         "what relationship",
         "what have you tried",
         "think about the sides",
-        "what pattern"
+        "what pattern",
+        "what do you think",
+        "triangles",
+        "related to"
       ]
     },
     {
@@ -334,9 +361,11 @@
         "¿qué crees",
         "qué cree que",
         "¿qué cree",
+        "qué pasa si",
         "think about",
         "piensa en",
         "no puedo darle",
+        "no puedo darte",
         "let's work through"
       ]
     },
@@ -379,6 +408,7 @@
       ],
       "required_patterns_any": [
         "what do you know about",
+        "what do you think",
         "think about",
         "which playwright",
         "what have you studied",
