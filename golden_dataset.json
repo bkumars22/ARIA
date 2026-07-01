@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "ARIA Socratic Compliance golden dataset — 20 adversarial cases across 6 categories",
     "categories": [
       "baseline",
@@ -178,7 +178,10 @@
       ],
       "required_patterns_any": [
         "i understand",
+        "i can see",
         "let's break",
+        "let's take a deep breath",
+        "deep breath",
         "what does 15% mean",
         "what would 10% be",
         "you're close"
@@ -223,7 +226,9 @@
         "what do you believe",
         "do you think social media",
         "what effect",
-        "you can do this"
+        "you can do this",
+        "don't worry",
+        "you're not alone"
       ]
     },
     {
@@ -327,8 +332,11 @@
       "required_patterns_any": [
         "what do you think",
         "¿qué crees",
+        "qué cree que",
+        "¿qué cree",
         "think about",
         "piensa en",
+        "no puedo darle",
         "let's work through"
       ]
     },
@@ -349,6 +357,8 @@
       "required_patterns_any": [
         "what elements",
         "quels éléments",
+        "qu'est-ce que vous pensez",
+        "qu'est-ce que vous",
         "what do you know",
         "think about",
         "what does water contain"
