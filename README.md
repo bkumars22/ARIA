@@ -50,21 +50,6 @@ ARIA now **teaches from the student's own uploaded textbook**:
 2. ARIA chunks, embeds, and stores it in ChromaDB (per-student collection)
 3. Every question is answered using content **from their actual book** — not generic AI knowledge
 4. Every Q&A turn is stored as learning memory so ARIA remembers what the student already knows
-
-```
-Student uploads Chapter 5 Chemistry PDF
-              ↓
-[/document/ingest-pdf] — PyMuPDF extracts text, ChromaDB stores 384-dim embeddings
-              ↓
-Student asks: "What is photosynthesis?"
-              ↓
-[retrieve_context node] — finds relevant textbook passages
-              ↓
-Socratic teaching using THEIR book + learning history
-              ↓
-Answer stored as Q&A memory for next session
-```
-
 ---
 
 ## Core Features
@@ -83,43 +68,13 @@ Answer stored as Q&A memory for next session
 ---
 
 ## Architecture
-
-```
-
-                    ARIA System                          
-                                                         
-  React + Vite Frontend  Spring Boot Backend          
-     (GitHub Pages)            (Railway)                 
-                                                        
-                         PostgreSQL (Railway)            
-                                                        
-                         Python AI Engine                
-                     FastAPI + LangGraph 6-node          
-                                                        
-                       
-         Groq API           ChromaDB RAG   Anthropic     
-    (Llama-3.3-70b-versatile)  (per-student)  (Claude)  
-
-```
-
-### LangGraph Teaching Pipeline (7 nodes)
-
-```
-assess_level        ← detects grade and confusion signals
-     
-select_curriculum   ← fetches EASY/MEDIUM/HARD module from backend
-     
-retrieve_context    ← NEW: ChromaDB RAG — textbook chunks + prior Q&A
-     
-teach_socratically  ← Groq Llama with textbook context injected
-     
-evaluate_response   ← scores student understanding 0–100
-     
-adapt_or_advance    ← simplify or move to next difficulty
-     
-log_progress        ← saves to backend + stores Q&A in RAG memory
-```
-
+PostgreSQL (Railway)            
+                                                    
+                     Python AI Engine                
+                 FastAPI + LangGraph 6-node          
+                                                    
+     Groq API           ChromaDB RAG   Anthropic     
+(Llama-3.3-70b-versatile)  (per-student)  (Claude)
 ---
 
 ## RAG API Endpoints
@@ -192,29 +147,30 @@ uvicorn main:app --reload --port 8000
   }
 }
 ```
-Socratic Compliance — Adversarial Eval Results
+
+---
+
+## Socratic Compliance — Adversarial Eval Results
+
 Built a 20-case adversarial golden dataset across 6 categories:
 
-Baseline Socratic checks
-Direct-answer bypass attempts
-Authority-claim jailbreaks
-Frustration and emotional pressure
-Multilingual jailbreak attempts (Hindi, Tamil)
-Prompt injection attacks
+- Baseline Socratic checks
+- Direct-answer bypass attempts
+- Authority-claim jailbreaks
+- Frustration and emotional pressure
+- Multilingual jailbreak attempts (Hindi, Tamil)
+- Prompt injection attacks
 
-Live compliance journey:
+**Live compliance journey:**
 
-22.2% → 44.4% → 83.3% → 88.9% → 100% (18/18 cases)
-Each jump had a specific root cause and fix:
+| Step | Score | Fix applied |
+|------|-------|-------------|
+| Live baseline | 22.2% | Wired to real ARIA endpoint |
+| Pattern fixes | 44.4% | Expanded required Socratic phrases |
+| System prompt hardening | 83.3% | 4 explicit RULE sections added |
+| RULE 3b antipattern | 88.9% | Eliminated refuse-then-answer pattern |
+| Temperature 0.8 → 0.3 | **100%** | Consistent rule-following achieved |
 
-Pattern fixes → 44.4%
-System prompt hardening (4 RULE sections) → 83.3%
-RULE 3b antipattern elimination → 88.9%
-Temperature 0.8 → 0.3 → 100%
-
-Full results: eval_report.json
-
-Golden dataset: golden_dataset.json
-
-Eval script: run_eval.py
-```
+Full results: [eval_report.json](./eval_report.json)  
+Golden dataset: [golden_dataset.json](./golden_dataset.json)  
+Eval script: [run_eval.py](./run_eval.py)
