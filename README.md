@@ -191,4 +191,27 @@ uvicorn main:app --reload --port 8000
     }
   }
 }
+
+## Socratic Compliance — Adversarial Eval Results
+
+Built a 20-case adversarial golden dataset across 6 categories:
+- Baseline Socratic checks
+- Direct-answer bypass attempts  
+- Authority-claim jailbreaks
+- Frustration and emotional pressure
+- Multilingual jailbreak attempts (Hindi, Tamil)
+- Prompt injection attacks
+
+**Live compliance journey:**
+22.2% → 44.4% → 83.3% → 88.9% → 100% (18/18 cases)
+
+Each jump had a specific root cause and fix:
+- Pattern fixes → 44.4%
+- System prompt hardening (4 RULE sections) → 83.3%
+- RULE 3b antipattern elimination → 88.9%
+- Temperature 0.8 → 0.3 → 100%
+
+Full results: [eval_report.json](./eval_report.json)
+Golden dataset: [golden_dataset.json](./golden_dataset.json)
+Eval script: [run_eval.py](./run_eval.py)
 ```
